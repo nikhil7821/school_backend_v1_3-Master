@@ -25,10 +25,12 @@ public interface ClassRepository extends JpaRepository<ClassEntity, Long> {
     @Query("SELECT c FROM ClassEntity c WHERE c.isDeleted = false")
     List<ClassEntity> findAllActiveClasses();
 
-    @Query("SELECT c FROM ClassEntity c WHERE c.classTeacherId = :teacherId AND c.isDeleted = false")
+    // FIXED: Use classTeacher.id instead of classTeacherId
+    @Query("SELECT c FROM ClassEntity c WHERE c.classTeacher.id = :teacherId AND c.isDeleted = false")
     List<ClassEntity> findByClassTeacherId(@Param("teacherId") Long teacherId);
 
-    @Query("SELECT c FROM ClassEntity c WHERE c.assistantTeacherId = :teacherId AND c.isDeleted = false")
+    // FIXED: Use assistantTeacher.id instead of assistantTeacherId
+    @Query("SELECT c FROM ClassEntity c WHERE c.assistantTeacher.id = :teacherId AND c.isDeleted = false")
     List<ClassEntity> findByAssistantTeacherId(@Param("teacherId") Long teacherId);
 
     @Query("SELECT COUNT(c) FROM ClassEntity c WHERE c.className = :className AND c.academicYear = :academicYear AND c.isDeleted = false")
@@ -36,4 +38,28 @@ public interface ClassRepository extends JpaRepository<ClassEntity, Long> {
 
     @Query("SELECT c FROM ClassEntity c WHERE c.classCode = :classCode AND c.isDeleted = false")
     Optional<ClassEntity> findByClassCodeAndNotDeleted(@Param("classCode") String classCode);
+
+    @Query("SELECT c FROM ClassEntity c WHERE c.className = :className AND c.section = :section AND c.isDeleted = false")
+    Optional<ClassEntity> findByClassNameAndSection(
+            @Param("className") String className,
+            @Param("section") String section
+    );
+
+    // OPTIONAL: Add these useful queries if needed
+
+    @Query("SELECT c FROM ClassEntity c WHERE c.classTeacher.id = :teacherId OR c.assistantTeacher.id = :teacherId AND c.isDeleted = false")
+    List<ClassEntity> findByAnyTeacherId(@Param("teacherId") Long teacherId);
+
+    @Query("SELECT c FROM ClassEntity c WHERE c.roomNumber = :roomNumber AND c.isDeleted = false")
+    List<ClassEntity> findByRoomNumber(@Param("roomNumber") String roomNumber);
+
+    @Query("SELECT c FROM ClassEntity c WHERE c.maxStudents - c.currentStudents > 0 AND c.isDeleted = false")
+    List<ClassEntity> findClassesWithAvailableSeats();
+
+    @Query("SELECT c FROM ClassEntity c WHERE " +
+            "LOWER(c.className) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(c.classCode) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(c.roomNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) AND " +
+            "c.isDeleted = false")
+    List<ClassEntity> searchClasses(@Param("keyword") String keyword);
 }

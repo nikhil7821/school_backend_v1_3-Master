@@ -49,4 +49,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                                        @Param("fatherName") String fatherName,
                                        @Param("studentId") String studentId,
                                        @Param("rollNumber") String rollNumber);
+
+    List<StudentEntity> findStudentsByClassAndSection(String className, String allSections);
+
 }

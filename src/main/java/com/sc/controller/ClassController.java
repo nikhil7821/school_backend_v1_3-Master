@@ -112,20 +112,20 @@ public class ClassController {
     // ────────────────────────────────────────────────
     //                  GET ALL CLASSES
     // ────────────────────────────────────────────────
-//    @GetMapping("/get-all-classes")
-//    public ResponseEntity<?> getAllClasses() {
-//        logger.info("GET /api/classes/get-all-classes → Fetching all classes");
-//
-//        try {
-//            List<ClassResponseDTO> classes = classService.getAllClasses();
-//            logger.info("Returning {} classes", classes.size());
-//            return ResponseEntity.ok(classes);
-//        } catch (Exception e) {
-//            logger.error("Error fetching all classes", e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body("Failed to fetch classes. Please try again later.");
-//        }
-//    }
+    @GetMapping("/get-all-classes")
+    public ResponseEntity<?> getAllClasses() {
+        logger.info("GET /api/classes/get-all-classes → Fetching all classes");
+
+        try {
+            List<ClassResponseDTO> classes = classService.getAllClasses();
+            logger.info("Returning {} classes", classes.size());
+            return ResponseEntity.ok(classes);
+        } catch (Exception e) {
+            logger.error("Error fetching all classes", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to fetch classes. Please try again later.");
+        }
+    }
 
     // ────────────────────────────────────────────────
     //           GET CLASSES BY ACADEMIC YEAR

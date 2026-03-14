@@ -44,14 +44,18 @@ public class ClassEntity {
     @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(name = "class_teacher_id")
-    private Long classTeacherId;
+    // 🔴 FIXED: Proper ManyToOne relationship with Teacher
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "class_teacher_id")
+    private TeacherEntity classTeacher;
 
     @Column(name = "class_teacher_subject")
     private String classTeacherSubject;
 
-    @Column(name = "assistant_teacher_id")
-    private Long assistantTeacherId;
+    // 🔴 FIXED: Proper ManyToOne relationship with Teacher for assistant
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assistant_teacher_id")
+    private TeacherEntity assistantTeacher;
 
     @Column(name = "assistant_teacher_subject")
     private String assistantTeacherSubject;
@@ -76,22 +80,20 @@ public class ClassEntity {
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
 
+    // 🔴 NEW: Relationship with Assignments
+    @OneToMany(mappedBy = "targetClass", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<AssignmentEntity> assignments = new ArrayList<>();
+
+    // 🔴 NEW: Relationship with Students through Enrollments
+    @OneToMany(mappedBy = "classEntity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<StudentClassEnrollment> enrollments = new ArrayList<>();
+
     // Transient fields for easy access
     @Transient
     private List<TeacherSubjectAssignment> otherTeacherSubject = new ArrayList<>();
 
     @Transient
     private List<String> workingDays = new ArrayList<>();
-
-
-    //============== StudentClassEnrollment CONNECTION ===================//
-    @OneToMany(mappedBy = "classEntity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<StudentClassEnrollment> enrollments = new ArrayList<>();
-
-    public void addEnrollment(StudentClassEnrollment enrollment) {
-        enrollments.add(enrollment);
-        enrollment.setClassEntity(this);
-    }
 
     // Constructors
     public ClassEntity() {
@@ -130,9 +132,45 @@ public class ClassEntity {
         saveWorkingDaysToJson();
     }
 
-    // ────────────────────────────────────────────────
-    // JSON Helper Methods for otherTeacherSubject (UPDATED)
-    // ────────────────────────────────────────────────
+    // ============= ENROLLMENT HELPER METHODS =============
+
+    public void addEnrollment(StudentClassEnrollment enrollment) {
+        enrollments.add(enrollment);
+        enrollment.setClassEntity(this);
+        this.currentStudents = enrollments.size();
+    }
+
+    public void removeEnrollment(StudentClassEnrollment enrollment) {
+        enrollments.remove(enrollment);
+        enrollment.setClassEntity(null);
+        this.currentStudents = enrollments.size();
+    }
+
+    // ============= ASSIGNMENT HELPER METHODS =============
+
+    public void addAssignment(AssignmentEntity assignment) {
+        assignments.add(assignment);
+        assignment.setTargetClass(this);
+    }
+
+    public void removeAssignment(AssignmentEntity assignment) {
+        assignments.remove(assignment);
+        assignment.setTargetClass(null);
+    }
+
+    // ============= TEACHER ASSIGNMENT METHODS =============
+
+    public void assignClassTeacher(TeacherEntity teacher, String subject) {
+        this.classTeacher = teacher;
+        this.classTeacherSubject = subject;
+    }
+
+    public void assignAssistantTeacher(TeacherEntity teacher, String subject) {
+        this.assistantTeacher = teacher;
+        this.assistantTeacherSubject = subject;
+    }
+
+    // ============= JSON HELPER METHODS =============
 
     private void loadOtherTeacherSubjectFromJson() {
         if (otherTeacherSubjectJson != null && !otherTeacherSubjectJson.isEmpty()) {
@@ -166,7 +204,6 @@ public class ClassEntity {
             if (!json.startsWith("[") || !json.endsWith("]")) return list;
             json = json.substring(1, json.length() - 1).trim();
 
-            // Split teacher objects (naive but works for your structure)
             String[] teacherBlocks = json.split("(?<=\\}),\\s*(?=\\{)");
 
             for (String block : teacherBlocks) {
@@ -177,14 +214,12 @@ public class ClassEntity {
                 String teacherName = null;
                 List<SubjectDetail> subjects = new ArrayList<>();
 
-                // Extract fields
                 int subjectsStart = block.indexOf("\"subjects\":");
                 if (subjectsStart == -1) continue;
 
                 String beforeSubjects = block.substring(0, subjectsStart);
                 String subjectsPart = block.substring(subjectsStart);
 
-                // Parse teacherId and teacherName
                 String[] beforeParts = beforeSubjects.split(",");
                 for (String part : beforeParts) {
                     part = part.trim();
@@ -195,7 +230,6 @@ public class ClassEntity {
                     }
                 }
 
-                // Parse subjects array
                 int arrayStart = subjectsPart.indexOf('[');
                 int arrayEnd = subjectsPart.lastIndexOf(']');
                 if (arrayStart == -1 || arrayEnd == -1) continue;
@@ -237,7 +271,6 @@ public class ClassEntity {
                 }
             }
         } catch (Exception e) {
-            // In production → log
             return new ArrayList<>();
         }
 
@@ -301,10 +334,6 @@ public class ClassEntity {
         return field.substring(colon + 1).trim();
     }
 
-    // ────────────────────────────────────────────────
-    // JSON Helper Methods for workingDays (unchanged)
-    // ────────────────────────────────────────────────
-
     private void loadWorkingDaysFromJson() {
         if (workingDaysJson != null && !workingDaysJson.isEmpty()) {
             try {
@@ -360,9 +389,43 @@ public class ClassEntity {
         return json.toString();
     }
 
-    // ────────────────────────────────────────────────
-    // Updated Inner Classes
-    // ────────────────────────────────────────────────
+    // ============= BUSINESS METHODS =============
+
+    public void addWorkingDay(String day) {
+        if (!workingDays.contains(day)) {
+            workingDays.add(day);
+        }
+    }
+
+    public void removeWorkingDay(String day) {
+        workingDays.remove(day);
+    }
+
+    public void addOtherTeacherAssignment(String teacherId, String teacherName, Integer subId, String subjectName, Integer totalMarks) {
+        for (TeacherSubjectAssignment assignment : otherTeacherSubject) {
+            if (assignment.getTeacherId().equals(teacherId)) {
+                boolean exists = assignment.getSubjects().stream()
+                        .anyMatch(s -> s.getSubjectName().equalsIgnoreCase(subjectName));
+                if (!exists) {
+                    assignment.getSubjects().add(new SubjectDetail(subId, subjectName, totalMarks));
+                }
+                return;
+            }
+        }
+
+        List<SubjectDetail> subs = new ArrayList<>();
+        subs.add(new SubjectDetail(subId, subjectName, totalMarks));
+        otherTeacherSubject.add(new TeacherSubjectAssignment(teacherId, teacherName, subs));
+    }
+
+    public void removeOtherTeacherAssignment(String teacherId, String subjectName) {
+        otherTeacherSubject.removeIf(assignment ->
+                assignment.getTeacherId().equals(teacherId) &&
+                        assignment.getSubjects().stream().anyMatch(s -> s.getSubjectName().equals(subjectName))
+        );
+    }
+
+    // ============= INNER CLASSES =============
 
     public static class TeacherSubjectAssignment {
         private String teacherId;
@@ -414,50 +477,7 @@ public class ClassEntity {
         public void setTotalMarks(Integer totalMarks) { this.totalMarks = totalMarks; }
     }
 
-    // ────────────────────────────────────────────────
-    // Business Methods – updated add method
-    // ────────────────────────────────────────────────
-
-    public void addWorkingDay(String day) {
-        if (!workingDays.contains(day)) {
-            workingDays.add(day);
-        }
-    }
-
-    public void removeWorkingDay(String day) {
-        workingDays.remove(day);
-    }
-
-    // Updated – now takes full subject info
-    public void addOtherTeacherAssignment(String teacherId, String teacherName, Integer subId, String subjectName, Integer totalMarks) {
-        for (TeacherSubjectAssignment assignment : otherTeacherSubject) {
-            if (assignment.getTeacherId().equals(teacherId)) {
-                // Avoid duplicate subject names (you can change logic)
-                boolean exists = assignment.getSubjects().stream()
-                        .anyMatch(s -> s.getSubjectName().equalsIgnoreCase(subjectName));
-                if (!exists) {
-                    assignment.getSubjects().add(new SubjectDetail(subId, subjectName, totalMarks));
-                }
-                return;
-            }
-        }
-
-        // New teacher
-        List<SubjectDetail> subs = new ArrayList<>();
-        subs.add(new SubjectDetail(subId, subjectName, totalMarks));
-        otherTeacherSubject.add(new TeacherSubjectAssignment(teacherId, teacherName, subs));
-    }
-
-    public void removeOtherTeacherAssignment(String teacherId, String subjectName) {
-        otherTeacherSubject.removeIf(assignment ->
-                assignment.getTeacherId().equals(teacherId) &&
-                        assignment.getSubjects().stream().anyMatch(s -> s.getSubjectName().equals(subjectName))
-        );
-    }
-
-    // ────────────────────────────────────────────────
-    // Getters & Setters (mostly unchanged)
-    // ────────────────────────────────────────────────
+    // ============= GETTERS & SETTERS =============
 
     public Long getClassId() { return classId; }
     public void setClassId(Long classId) { this.classId = classId; }
@@ -492,17 +512,25 @@ public class ClassEntity {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public Long getClassTeacherId() { return classTeacherId; }
-    public void setClassTeacherId(Long classTeacherId) { this.classTeacherId = classTeacherId; }
+    // 🔴 FIXED: Teacher getters/setters
+    public TeacherEntity getClassTeacher() { return classTeacher; }
+    public void setClassTeacher(TeacherEntity classTeacher) { this.classTeacher = classTeacher; }
 
     public String getClassTeacherSubject() { return classTeacherSubject; }
     public void setClassTeacherSubject(String classTeacherSubject) { this.classTeacherSubject = classTeacherSubject; }
 
-    public Long getAssistantTeacherId() { return assistantTeacherId; }
-    public void setAssistantTeacherId(Long assistantTeacherId) { this.assistantTeacherId = assistantTeacherId; }
+    public TeacherEntity getAssistantTeacher() { return assistantTeacher; }
+    public void setAssistantTeacher(TeacherEntity assistantTeacher) { this.assistantTeacher = assistantTeacher; }
 
     public String getAssistantTeacherSubject() { return assistantTeacherSubject; }
     public void setAssistantTeacherSubject(String assistantTeacherSubject) { this.assistantTeacherSubject = assistantTeacherSubject; }
+
+    // 🔴 NEW: Assignment getter/setter
+    public List<AssignmentEntity> getAssignments() { return assignments; }
+    public void setAssignments(List<AssignmentEntity> assignments) { this.assignments = assignments; }
+
+    public List<StudentClassEnrollment> getEnrollments() { return enrollments; }
+    public void setEnrollments(List<StudentClassEnrollment> enrollments) { this.enrollments = enrollments; }
 
     public String getOtherTeacherSubjectJson() { return otherTeacherSubjectJson; }
     public void setOtherTeacherSubjectJson(String json) {
@@ -528,6 +556,9 @@ public class ClassEntity {
     public Boolean getIsDeleted() { return isDeleted; }
     public void setIsDeleted(Boolean isDeleted) { this.isDeleted = isDeleted; }
 
+    public Boolean getDeleted() { return isDeleted; }
+    public void setDeleted(Boolean deleted) { isDeleted = deleted; }
+
     public List<TeacherSubjectAssignment> getOtherTeacherSubject() { return otherTeacherSubject; }
     public void setOtherTeacherSubject(List<TeacherSubjectAssignment> assignments) {
         this.otherTeacherSubject = assignments != null ? assignments : new ArrayList<>();
@@ -538,20 +569,23 @@ public class ClassEntity {
         this.workingDays = days != null ? days : new ArrayList<>();
     }
 
+    // ============= LEGACY GETTERS/SETTERS for backward compatibility =============
 
-    public Boolean getDeleted() {
-        return isDeleted;
+    public Long getClassTeacherId() {
+        return classTeacher != null ? classTeacher.getId() : null;
     }
 
-    public void setDeleted(Boolean deleted) {
-        isDeleted = deleted;
+    public void setClassTeacherId(Long classTeacherId) {
+        // This is for backward compatibility only
+        // Should use setClassTeacher(TeacherEntity) instead
     }
 
-    public List<StudentClassEnrollment> getEnrollments() {
-        return enrollments;
+    public Long getAssistantTeacherId() {
+        return assistantTeacher != null ? assistantTeacher.getId() : null;
     }
 
-    public void setEnrollments(List<StudentClassEnrollment> enrollments) {
-        this.enrollments = enrollments;
+    public void setAssistantTeacherId(Long assistantTeacherId) {
+        // This is for backward compatibility only
+        // Should use setAssistantTeacher(TeacherEntity) instead
     }
 }

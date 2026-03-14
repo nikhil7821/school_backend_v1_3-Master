@@ -3,6 +3,8 @@ package com.sc.service;
 import com.sc.dto.request.ClassCreateRequestDTO;
 import com.sc.dto.response.ClassResponseDTO;
 import com.sc.dto.request.TeacherSubjectAssignmentDTO;
+import com.sc.dto.response.ClassSubjectsResponseDTO;
+
 import java.util.List;
 
 public interface ClassService {
@@ -36,4 +38,7 @@ public interface ClassService {
     // Validation
     boolean isClassCodeExists(String classCode);
     boolean isTeacherAssignedToClass(Long teacherId, Long excludeClassId);
+
+    // 🔴 NEW METHOD - Add this
+    ClassSubjectsResponseDTO getSubjectsByClassAndSection(String className, String section);
 }

@@ -22,7 +22,6 @@ public interface TeacherRepository extends JpaRepository<TeacherEntity, Long> {
 
     // Find by email
     Optional<TeacherEntity> findByEmail(String email);
-
     // Find by contact number
     Optional<TeacherEntity> findByContactNumber(String contactNumber);
 
@@ -128,7 +127,7 @@ public interface TeacherRepository extends JpaRepository<TeacherEntity, Long> {
             @Param("status") String status,
             @Param("employmentType") String employmentType);
 
-    // In TeacherRepository.java
+    // Custom query to get max teacherCode sequence number (for your ID generator)
     @Query("SELECT MAX(CAST(SUBSTRING(t.teacherCode, 4) AS integer)) FROM TeacherEntity t WHERE t.teacherCode LIKE 'TCH%'")
     Integer findMaxTeacherCodeSequence();
 

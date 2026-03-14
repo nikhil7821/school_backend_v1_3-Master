@@ -5,6 +5,7 @@ import com.sc.dto.request.ClassCreateRequestDTO;
 import com.sc.dto.request.SubjectDetailDTO;
 import com.sc.dto.response.ClassResponseDTO;
 import com.sc.dto.request.TeacherSubjectAssignmentDTO;
+import com.sc.dto.response.ClassSubjectsResponseDTO;
 import com.sc.entity.ClassEntity;
 import com.sc.repository.ClassRepository;
 import com.sc.service.ClassService;
@@ -317,6 +318,11 @@ public class ClassServiceImpl implements ClassService {
         }
 
         return false;
+    }
+
+    @Override
+    public ClassSubjectsResponseDTO getSubjectsByClassAndSection(String className, String section) {
+        return null;
     }
 
     // ────────────────────────────────────────────────
