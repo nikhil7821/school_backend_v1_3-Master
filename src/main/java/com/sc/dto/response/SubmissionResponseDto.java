@@ -1,7 +1,6 @@
 package com.sc.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +10,6 @@ public class SubmissionResponseDto {
     private Long submissionId;
     private Long assignmentId;
     private String assignmentTitle;
-
     private Long studentId;
     private String studentName;
     private String rollNumber;
@@ -35,162 +33,64 @@ public class SubmissionResponseDto {
 
     private List<String> fileUrls = new ArrayList<>();
 
-    // ============= CONSTRUCTORS =============
+    // Constructors
+    public SubmissionResponseDto() {}
 
-    public SubmissionResponseDto() {
-    }
+    // Getters and Setters
+    public Long getSubmissionId() { return submissionId; }
+    public void setSubmissionId(Long submissionId) { this.submissionId = submissionId; }
 
-    // ============= GETTERS & SETTERS =============
+    public Long getAssignmentId() { return assignmentId; }
+    public void setAssignmentId(Long assignmentId) { this.assignmentId = assignmentId; }
 
-    public Long getSubmissionId() {
-        return submissionId;
-    }
+    public String getAssignmentTitle() { return assignmentTitle; }
+    public void setAssignmentTitle(String assignmentTitle) { this.assignmentTitle = assignmentTitle; }
 
-    public void setSubmissionId(Long submissionId) {
-        this.submissionId = submissionId;
-    }
+    public Long getStudentId() { return studentId; }
+    public void setStudentId(Long studentId) { this.studentId = studentId; }
 
-    public Long getAssignmentId() {
-        return assignmentId;
-    }
+    public String getStudentName() { return studentName; }
+    public void setStudentName(String studentName) { this.studentName = studentName; }
 
-    public void setAssignmentId(Long assignmentId) {
-        this.assignmentId = assignmentId;
-    }
+    public String getRollNumber() { return rollNumber; }
+    public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
 
-    public String getAssignmentTitle() {
-        return assignmentTitle;
-    }
+    public String getStudentClass() { return studentClass; }
+    public void setStudentClass(String studentClass) { this.studentClass = studentClass; }
 
-    public void setAssignmentTitle(String assignmentTitle) {
-        this.assignmentTitle = assignmentTitle;
-    }
+    public String getStudentSection() { return studentSection; }
+    public void setStudentSection(String studentSection) { this.studentSection = studentSection; }
 
-    public Long getStudentId() {
-        return studentId;
-    }
+    public LocalDateTime getSubmittedDate() { return submittedDate; }
+    public void setSubmittedDate(LocalDateTime submittedDate) { this.submittedDate = submittedDate; }
 
-    public void setStudentId(Long studentId) {
-        this.studentId = studentId;
-    }
+    public List<String> getFiles() { return files; }
+    public void setFiles(List<String> files) { this.files = files; }
 
-    public String getStudentName() {
-        return studentName;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public void setStudentName(String studentName) {
-        this.studentName = studentName;
-    }
+    public Float getObtainedMarks() { return obtainedMarks; }
+    public void setObtainedMarks(Float obtainedMarks) { this.obtainedMarks = obtainedMarks; }
 
-    public String getRollNumber() {
-        return rollNumber;
-    }
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 
-    public void setRollNumber(String rollNumber) {
-        this.rollNumber = rollNumber;
-    }
+    public String getTeacherFeedback() { return teacherFeedback; }
+    public void setTeacherFeedback(String teacherFeedback) { this.teacherFeedback = teacherFeedback; }
 
-    public String getStudentClass() {
-        return studentClass;
-    }
+    public Boolean getIsLate() { return isLate; }
+    public void setIsLate(Boolean isLate) { this.isLate = isLate; }
 
-    public void setStudentClass(String studentClass) {
-        this.studentClass = studentClass;
-    }
+    public Boolean getIsResubmission() { return isResubmission; }
+    public void setIsResubmission(Boolean isResubmission) { this.isResubmission = isResubmission; }
 
-    public String getStudentSection() {
-        return studentSection;
-    }
+    public Boolean getRecheckRequested() { return recheckRequested; }
+    public void setRecheckRequested(Boolean recheckRequested) { this.recheckRequested = recheckRequested; }
 
-    public void setStudentSection(String studentSection) {
-        this.studentSection = studentSection;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public LocalDateTime getSubmittedDate() {
-        return submittedDate;
-    }
-
-    public void setSubmittedDate(LocalDateTime submittedDate) {
-        this.submittedDate = submittedDate;
-    }
-
-    public List<String> getFiles() {
-        return files;
-    }
-
-    public void setFiles(List<String> files) {
-        this.files = files;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Float getObtainedMarks() {
-        return obtainedMarks;
-    }
-
-    public void setObtainedMarks(Float obtainedMarks) {
-        this.obtainedMarks = obtainedMarks;
-    }
-
-    public String getGrade() {
-        return grade;
-    }
-
-    public void setGrade(String grade) {
-        this.grade = grade;
-    }
-
-    public String getTeacherFeedback() {
-        return teacherFeedback;
-    }
-
-    public void setTeacherFeedback(String teacherFeedback) {
-        this.teacherFeedback = teacherFeedback;
-    }
-
-    public Boolean getIsLate() {
-        return isLate;
-    }
-
-    public void setIsLate(Boolean isLate) {
-        this.isLate = isLate;
-    }
-
-    public Boolean getIsResubmission() {
-        return isResubmission;
-    }
-
-    public void setIsResubmission(Boolean isResubmission) {
-        this.isResubmission = isResubmission;
-    }
-
-    public Boolean getRecheckRequested() {
-        return recheckRequested;
-    }
-
-    public void setRecheckRequested(Boolean recheckRequested) {
-        this.recheckRequested = recheckRequested;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public List<String> getFileUrls() {
-        return fileUrls;
-    }
-
-    public void setFileUrls(List<String> fileUrls) {
-        this.fileUrls = fileUrls;
-    }
+    public List<String> getFileUrls() { return fileUrls; }
+    public void setFileUrls(List<String> fileUrls) { this.fileUrls = fileUrls; }
 }

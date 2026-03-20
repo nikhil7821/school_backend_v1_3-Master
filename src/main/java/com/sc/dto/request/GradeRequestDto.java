@@ -10,10 +10,8 @@ public class GradeRequestDto {
     private String gradingMethod;
     private Boolean publishToStudent = true;
 
-    // ============= CONSTRUCTORS =============
-
-    public GradeRequestDto() {
-    }
+    // Constructors
+    public GradeRequestDto() {}
 
     public GradeRequestDto(Long assignmentId, Long studentId, Float obtainedMarks, String grade,
                            String teacherFeedback, String gradingMethod, Boolean publishToStudent) {
@@ -26,61 +24,25 @@ public class GradeRequestDto {
         this.publishToStudent = publishToStudent;
     }
 
-    // ============= GETTERS & SETTERS =============
+    // Getters and Setters
+    public Long getAssignmentId() { return assignmentId; }
+    public void setAssignmentId(Long assignmentId) { this.assignmentId = assignmentId; }
 
-    public Long getAssignmentId() {
-        return assignmentId;
-    }
+    public Long getStudentId() { return studentId; }
+    public void setStudentId(Long studentId) { this.studentId = studentId; }
 
-    public void setAssignmentId(Long assignmentId) {
-        this.assignmentId = assignmentId;
-    }
+    public Float getObtainedMarks() { return obtainedMarks; }
+    public void setObtainedMarks(Float obtainedMarks) { this.obtainedMarks = obtainedMarks; }
 
-    public Long getStudentId() {
-        return studentId;
-    }
+    public String getGrade() { return grade; }
+    public void setGrade(String grade) { this.grade = grade; }
 
-    public void setStudentId(Long studentId) {
-        this.studentId = studentId;
-    }
+    public String getTeacherFeedback() { return teacherFeedback; }
+    public void setTeacherFeedback(String teacherFeedback) { this.teacherFeedback = teacherFeedback; }
 
-    public Float getObtainedMarks() {
-        return obtainedMarks;
-    }
+    public String getGradingMethod() { return gradingMethod; }
+    public void setGradingMethod(String gradingMethod) { this.gradingMethod = gradingMethod; }
 
-    public void setObtainedMarks(Float obtainedMarks) {
-        this.obtainedMarks = obtainedMarks;
-    }
-
-    public String getGrade() {
-        return grade;
-    }
-
-    public void setGrade(String grade) {
-        this.grade = grade;
-    }
-
-    public String getTeacherFeedback() {
-        return teacherFeedback;
-    }
-
-    public void setTeacherFeedback(String teacherFeedback) {
-        this.teacherFeedback = teacherFeedback;
-    }
-
-    public String getGradingMethod() {
-        return gradingMethod;
-    }
-
-    public void setGradingMethod(String gradingMethod) {
-        this.gradingMethod = gradingMethod;
-    }
-
-    public Boolean getPublishToStudent() {
-        return publishToStudent;
-    }
-
-    public void setPublishToStudent(Boolean publishToStudent) {
-        this.publishToStudent = publishToStudent;
-    }
+    public Boolean getPublishToStudent() { return publishToStudent; }
+    public void setPublishToStudent(Boolean publishToStudent) { this.publishToStudent = publishToStudent; }
 }

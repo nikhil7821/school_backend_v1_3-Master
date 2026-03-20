@@ -27,7 +27,7 @@ public class ExamEntity {
     @Column(name = "academic_year", nullable = false)
     private String academicYear;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "class_id", nullable = false)
     private ClassEntity classEntity;
 
@@ -57,6 +57,10 @@ public class ExamEntity {
 
     @Column(name = "created_by")
     private String createdBy;
+
+    // Transient field for class name (for easy access in frontend)
+    @Transient
+    private String className;
 
     @Transient
     private List<SubjectDetail> subjects = new ArrayList<>();
@@ -125,6 +129,10 @@ public class ExamEntity {
     @PostLoad
     private void onLoad() {
         loadSubjectsFromJson();
+        // Set class name from class entity for easy access in frontend
+        if (classEntity != null) {
+            this.className = classEntity.getClassName();
+        }
     }
 
     private void loadSubjectsFromJson() {
@@ -162,6 +170,16 @@ public class ExamEntity {
         saveSubjectsToJson();
     }
 
+    // Helper method to get class ID directly
+    public Long getClassId() {
+        return classEntity != null ? classEntity.getClassId() : null;
+    }
+
+    // Helper method to get class code directly
+    public String getClassCode() {
+        return classEntity != null ? classEntity.getClassCode() : null;
+    }
+
     // Getters and Setters
     public Long getExamId() { return examId; }
     public void setExamId(Long examId) { this.examId = examId; }
@@ -179,7 +197,13 @@ public class ExamEntity {
     public void setAcademicYear(String academicYear) { this.academicYear = academicYear; }
 
     public ClassEntity getClassEntity() { return classEntity; }
-    public void setClassEntity(ClassEntity classEntity) { this.classEntity = classEntity; }
+    public void setClassEntity(ClassEntity classEntity) {
+        this.classEntity = classEntity;
+        // Update className when classEntity is set
+        if (classEntity != null) {
+            this.className = classEntity.getClassName();
+        }
+    }
 
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
@@ -216,4 +240,13 @@ public class ExamEntity {
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+
+    // Getter and Setter for className transient field
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
 }

@@ -1,8 +1,14 @@
 package com.sc.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,28 +16,37 @@ public class AssignmentRequestDto {
 
     private String title;
     private String subject;
+
+    private Long classId;
     private String className;
     private String section;
     private String description;
     private String gradingType;
     private Integer totalMarks;
 
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm[:ss]")
+    @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime startDate;
 
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm[:ss]")
+    @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
     private LocalDateTime dueDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm[:ss]")
+    @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
+    @JsonSerialize(using = LocalDateTimeSerializer.class)
+    private LocalDateTime scheduledPublishDate;
 
     private Boolean allowLateSubmission = false;
     private Boolean allowResubmission = false;
     private String priority;
     private String assignTo;
 
-    // ============= NEW PUBLISH FIELDS =============
-    private String publishStatus; // DRAFT, PUBLISHED, SCHEDULED
-    private LocalDateTime scheduledPublishDate;
-    private Boolean publishNow = false; // If true, publish immediately
-    // ==============================================
+    private String publishStatus;
+
+    private Boolean publishNow = false;
 
     private List<String> assignedClasses = new ArrayList<>();
     private List<Long> assignedStudents = new ArrayList<>();
@@ -44,13 +59,43 @@ public class AssignmentRequestDto {
     private Boolean sendLateWarnings = false;
 
     private String status = "active";
-
     private Long createdByTeacherId;
-
     private String academicYear;
     private String term;
 
     private transient List<MultipartFile> attachmentFiles;
+
+    // Custom deserializer for flexible date format
+    public static class FlexibleLocalDateTimeDeserializer extends LocalDateTimeDeserializer {
+        private static final DateTimeFormatter FORMATTER_WITH_SECONDS = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        private static final DateTimeFormatter FORMATTER_WITHOUT_SECONDS = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
+        public FlexibleLocalDateTimeDeserializer() {
+            super(FORMATTER_WITH_SECONDS);
+        }
+
+        @Override
+        public LocalDateTime deserialize(com.fasterxml.jackson.core.JsonParser parser,
+                                         com.fasterxml.jackson.databind.DeserializationContext context) throws java.io.IOException {
+            String dateString = parser.getValueAsString();
+            if (dateString == null || dateString.trim().isEmpty()) {
+                return null;
+            }
+
+            try {
+                // Try with seconds first
+                return LocalDateTime.parse(dateString, FORMATTER_WITH_SECONDS);
+            } catch (DateTimeParseException e1) {
+                try {
+                    // Try without seconds
+                    return LocalDateTime.parse(dateString, FORMATTER_WITHOUT_SECONDS);
+                } catch (DateTimeParseException e2) {
+                    // If both fail, try default format
+                    return LocalDateTime.parse(dateString);
+                }
+            }
+        }
+    }
 
     // Getters and Setters for new fields
     public String getPublishStatus() { return publishStatus; }
@@ -140,4 +185,12 @@ public class AssignmentRequestDto {
 
     public List<MultipartFile> getAttachmentFiles() { return attachmentFiles; }
     public void setAttachmentFiles(List<MultipartFile> attachmentFiles) { this.attachmentFiles = attachmentFiles; }
+
+    public Long getClassId() {
+        return classId;
+    }
+
+    public void setClassId(Long classId) {
+        this.classId = classId;
+    }
 }

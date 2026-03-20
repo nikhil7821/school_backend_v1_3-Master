@@ -584,6 +584,11 @@ public class ClassEntity {
         return assistantTeacher != null ? assistantTeacher.getId() : null;
     }
 
+    // Add this method to ClassEntity.java (around line 400-410)
+    public String getDisplayName() {
+        return this.className + " - " + this.section + " (" + this.academicYear + ")";
+    }
+
     public void setAssistantTeacherId(Long assistantTeacherId) {
         // This is for backward compatibility only
         // Should use setAssistantTeacher(TeacherEntity) instead

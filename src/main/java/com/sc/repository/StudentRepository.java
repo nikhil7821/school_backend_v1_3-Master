@@ -50,6 +50,47 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                                        @Param("studentId") String studentId,
                                        @Param("rollNumber") String rollNumber);
 
-    List<StudentEntity> findStudentsByClassAndSection(String className, String allSections);
+    // ============= 🔍 FIXED METHOD - CLASS AND SECTION BASED STUDENT FETCH =============
+    @Query("SELECT s FROM StudentEntity s WHERE s.currentClass = :className " +
+            "AND (:section IS NULL OR s.section = :section OR :section = 'All Sections')")
+    List<StudentEntity> findStudentsByClassAndSection(@Param("className") String className,
+                                                      @Param("section") String section);
 
+    // ============= 📊 COUNT BY CLASS AND SECTION =============
+    @Query("SELECT COUNT(s) FROM StudentEntity s WHERE s.currentClass = :className " +
+            "AND (:section IS NULL OR s.section = :section OR :section = 'All Sections')")
+    long countStudentsByClassAndSection(@Param("className") String className,
+                                        @Param("section") String section);
+
+    // ============= 🔍 FIND ACTIVE STUDENTS =============
+    @Query("SELECT s FROM StudentEntity s WHERE s.status = 'Active'")
+    List<StudentEntity> findAllActiveStudents();
+
+    // ============= 🔍 FIND STUDENTS BY ADMISSION YEAR =============
+    @Query("SELECT s FROM StudentEntity s WHERE YEAR(s.admissionDate) = :year")
+    List<StudentEntity> findByAdmissionYear(@Param("year") int year);
+
+    // ============= 🔍 FIND STUDENTS BY MULTIPLE CLASSES =============
+    @Query("SELECT s FROM StudentEntity s WHERE s.currentClass IN :classNames")
+    List<StudentEntity> findByClassNames(@Param("classNames") List<String> classNames);
+
+    // ============= 📊 GET STUDENT STATISTICS =============
+    @Query("SELECT COUNT(s), s.gender FROM StudentEntity s GROUP BY s.gender")
+    List<Object[]> getGenderStatistics();
+
+    @Query("SELECT COUNT(s), s.casteCategory FROM StudentEntity s GROUP BY s.casteCategory")
+    List<Object[]> getCasteStatistics();
+
+    // ============= 🔍 FIND STUDENTS WITH PENDING FEES =============
+    @Query("SELECT s FROM StudentEntity s WHERE s.status = 'Active' AND " +
+            "(SELECT SUM(f.remainingFees) FROM FeesEntity f WHERE f.student.stdId = s.stdId) > 0")
+    List<StudentEntity> findStudentsWithPendingFees();
+
+    // ============= 🔍 FIND STUDENTS BY PARENT PHONE =============
+    StudentEntity findByFatherPhone(String fatherPhone);
+    StudentEntity findByMotherPhone(String motherPhone);
+    StudentEntity findByGuardianPhone(String guardianPhone);
+
+    // ============= 🔍 FIND STUDENTS BY EMERGENCY CONTACT =============
+    StudentEntity findByEmergencyContact(String emergencyContact);
 }

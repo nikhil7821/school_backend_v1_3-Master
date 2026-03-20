@@ -22,7 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/attendance")
-@CrossOrigin(origins = "*")
+//@CrossOrigin(origins = "*")
 public class AttendanceController {
 
     private static final Logger logger = LoggerFactory.getLogger(AttendanceController.class);

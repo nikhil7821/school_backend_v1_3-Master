@@ -11,8 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/classes")
@@ -675,6 +677,43 @@ public class ClassController {
             logger.error("Error fetching recent classes", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to fetch recent classes. Please try again later.");
+        }
+    }
+
+    // Add these missing endpoints to your ClassController.java
+
+    // ────────────────────────────────────────────────
+//           GET CLASS BY ID WITH DETAILS
+// ────────────────────────────────────────────────
+
+
+    // ────────────────────────────────────────────────
+//      GET ALL CLASSES (SIMPLIFIED FOR DROPDOWNS)
+// ────────────────────────────────────────────────
+    @GetMapping("/get-all-classes-simple")
+    public ResponseEntity<?> getAllClassesSimple() {
+        logger.info("GET /api/classes/get-all-classes-simple → Fetching all classes (simplified)");
+
+        try {
+            List<ClassResponseDTO> classes = classService.getAllClasses();
+            // Return only necessary fields for dropdown
+            List<Map<String, Object>> simplified = classes.stream()
+                    .map(c -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("classId", c.getClassId());
+                        map.put("className", c.getClassName());
+                        map.put("classCode", c.getClassCode());
+                        map.put("section", c.getSection());
+                        map.put("academicYear", c.getAcademicYear());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(simplified);
+        } catch (Exception e) {
+            logger.error("Error fetching classes", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to fetch classes");
         }
     }
 }
