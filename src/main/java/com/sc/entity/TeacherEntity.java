@@ -1,5 +1,6 @@
 package com.sc.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sc.util.TeacherIdGenerator;
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
@@ -36,6 +37,11 @@ public class TeacherEntity {
 
     @Column(name = "first_name", nullable = false)
     private String firstName;
+
+    // In TeacherEntity.java
+    @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<TimetableEntryEntity> timetableEntries = new ArrayList<>();
 
     public String getTeacherCode() {
         return teacherCode;
@@ -170,6 +176,7 @@ public class TeacherEntity {
     private Double grossSalary;
 
     @Column(name = "teacher_photo", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS - prevents serialization of large binary data
     private byte[] teacherPhoto;
 
     private String status = "Active";
@@ -195,27 +202,35 @@ public class TeacherEntity {
     private boolean isDeleted = false;
 
     @Column(name = "aadhar_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] aadharDocument;
 
     @Column(name = "pan_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] panDocument;
 
     @Column(name = "education_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] educationDocument;
 
     @Column(name = "bed_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] bedDocument;
 
     @Column(name = "experience_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] experienceDocument;
 
     @Column(name = "police_verification_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] policeVerificationDocument;
 
     @Column(name = "medical_fitness_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] medicalFitnessDocument;
 
     @Column(name = "resume_document", columnDefinition = "LONGBLOB")
+    @JsonIgnore  // ADD THIS
     private byte[] resumeDocument;
 
     // ========== RELATIONAL MAPPING ADDITIONS ==========

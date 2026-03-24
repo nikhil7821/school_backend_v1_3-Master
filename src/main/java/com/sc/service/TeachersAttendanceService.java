@@ -9,7 +9,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-
 public interface TeachersAttendanceService {
 
     // Single attendance operations
@@ -18,7 +17,7 @@ public interface TeachersAttendanceService {
     TeachersAttendanceResponseDto updateAttendance(Long id, TeachersAttendanceRequestDto requestDto);
     void deleteAttendance(Long id);
 
-    // Bulk operations - UPDATED return type
+    // Bulk operations
     Map<String, Object> markBulkAttendance(List<TeachersAttendanceRequestDto> requestDtos);
 
     // Get all with pagination
@@ -61,29 +60,31 @@ public interface TeachersAttendanceService {
     // Department list for filter dropdown
     List<String> getAllDepartments();
 
-    // Salary integration - REMOVED isProcessedForSalary parameter
+    // Salary integration
     TeachersAttendanceResponseDto markAsProcessedForSalary(Long attendanceId, Long salaryId);
 
     // Generate salary slip data
     Map<String, Object> generateSalarySlipData(Long teacherId, int year, int month);
 
-    // ========== ADD THESE NEW METHODS FOR CHECK-IN/CHECK-OUT ==========
+    // ========== CHECK-IN/CHECK-OUT METHODS ==========
 
     /**
      * Check-in a teacher for a specific date
      * @param teacherId The teacher's ID
      * @param date The attendance date
+     * @param teacherCode The teacher's code for verification (optional)
      * @return The updated attendance record
      */
-    TeachersAttendanceResponseDto checkIn(Long teacherId, LocalDate date);
+    TeachersAttendanceResponseDto checkIn(Long teacherId, LocalDate date, String teacherCode);
 
     /**
      * Check-out a teacher for a specific date
      * @param teacherId The teacher's ID
      * @param date The attendance date
+     * @param teacherCode The teacher's code for verification (optional)
      * @return The updated attendance record
      */
-    TeachersAttendanceResponseDto checkOut(Long teacherId, LocalDate date);
+    TeachersAttendanceResponseDto checkOut(Long teacherId, LocalDate date, String teacherCode);
 
     /**
      * Get teachers who haven't checked in today
@@ -152,5 +153,4 @@ public interface TeachersAttendanceService {
      * @return Map with daily check-in/out data
      */
     Map<String, Object> getMonthlyCheckInOutSummary(Long teacherId, int year, int month);
-
 }

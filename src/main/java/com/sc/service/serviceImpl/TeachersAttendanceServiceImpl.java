@@ -47,8 +47,8 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
             "Present", "Absent", "Late", "Leave", "Half Day"
     );
 
-    private static final int MAX_PAST_DAYS = 30; // Configurable
-    private static final LocalTime DEFAULT_LATE_THRESHOLD = LocalTime.of(8, 30); // 8:30 AM
+    private static final int MAX_PAST_DAYS = 30;
+    private static final LocalTime DEFAULT_LATE_THRESHOLD = LocalTime.of(8, 30);
 
     // ========== MARK ATTENDANCE (SINGLE) ==========
     @Override
@@ -56,38 +56,26 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         log.info("Marking attendance for teacher ID: {} on date: {}", requestDto.getTeacherId(), requestDto.getAttendanceDate());
 
         try {
-            // Validate teacher exists
             TeacherEntity teacher = teacherRepository.findById(requestDto.getTeacherId())
                     .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + requestDto.getTeacherId()));
 
-            // Validate status
             validateStatus(requestDto.getStatus());
-
-            // Validate date
             validateAttendanceDate(requestDto.getAttendanceDate());
 
-            // Check if attendance already exists for this teacher on this date
             Optional<TeachersAttendanceEntity> existingAttendance = attendanceRepository
                     .findByTeacherIdAndAttendanceDate(requestDto.getTeacherId(), requestDto.getAttendanceDate());
 
             TeachersAttendanceEntity entity;
 
             if (existingAttendance.isPresent()) {
-                // Update existing attendance
                 entity = existingAttendance.get();
                 log.info("Updating existing attendance with ID: {}", entity.getId());
-
-                // Update only the fields that exist in your DTO
                 entity.setStatus(requestDto.getStatus());
                 entity.setRemarks(requestDto.getRemarks());
                 entity.setUpdatedAt(LocalDateTime.now());
-
             } else {
-                // Create new attendance
                 entity = new TeachersAttendanceEntity();
                 log.info("Creating new attendance record");
-
-                // Set all fields for new record
                 entity.setTeacher(teacher);
                 entity.setAttendanceDate(requestDto.getAttendanceDate());
                 entity.setStatus(requestDto.getStatus());
@@ -97,10 +85,8 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
                 entity.setUpdatedAt(LocalDateTime.now());
             }
 
-            // Save to database
             TeachersAttendanceEntity saved = attendanceRepository.save(entity);
             log.info("Attendance saved successfully with ID: {}", saved.getId());
-
             return convertToResponseDto(saved);
 
         } catch (Exception e) {
@@ -109,50 +95,31 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         }
     }
 
-    private void updateAttendanceEntity(TeachersAttendanceEntity entity,
-                                        TeachersAttendanceRequestDto dto,
-                                        TeacherEntity teacher) {
-        entity.setStatus(dto.getStatus());
-        entity.setRemarks(dto.getRemarks());
-        entity.setUpdatedAt(LocalDateTime.now());
-
-        // Ensure teacher_code is always set
-        if (entity.getTeacherCode() == null && teacher != null) {
-            entity.setTeacherCode(teacher.getTeacherCode());
-        }
-    }
-
     @Override
     @Transactional(readOnly = true)
     public TeachersAttendanceResponseDto getAttendanceById(Long id) {
         TeachersAttendanceEntity entity = attendanceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Attendance not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with id: " + id));
         return convertToResponseDto(entity);
     }
 
     @Override
     public TeachersAttendanceResponseDto updateAttendance(Long id, TeachersAttendanceRequestDto requestDto) {
         TeachersAttendanceEntity entity = attendanceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Attendance not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with id: " + id));
 
-        // Validate status if being updated
         if (requestDto.getStatus() != null) {
             validateStatus(requestDto.getStatus());
         }
 
-        // Update teacher if changed
         if (requestDto.getTeacherId() != null &&
                 !requestDto.getTeacherId().equals(entity.getTeacher().getId())) {
             TeacherEntity teacher = teacherRepository.findById(requestDto.getTeacherId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Teacher not found with id: " + requestDto.getTeacherId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + requestDto.getTeacherId()));
             entity.setTeacher(teacher);
             entity.setTeacherCode(teacher.getTeacherCode());
         }
 
-        // Update fields
         if (requestDto.getAttendanceDate() != null) {
             validateAttendanceDate(requestDto.getAttendanceDate());
             entity.setAttendanceDate(requestDto.getAttendanceDate());
@@ -180,17 +147,14 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     @Transactional(readOnly = true)
     public Page<TeachersAttendanceResponseDto> getAllAttendance(Pageable pageable) {
-        return attendanceRepository.findAll(pageable)
-                .map(this::convertToResponseDto);
+        return attendanceRepository.findAll(pageable).map(this::convertToResponseDto);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TeachersAttendanceResponseDto> getAttendanceByTeacherId(Long teacherId) {
         teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
         return attendanceRepository.findByTeacherId(teacherId).stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
@@ -200,9 +164,7 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Transactional(readOnly = true)
     public Page<TeachersAttendanceResponseDto> getAttendanceByTeacherId(Long teacherId, Pageable pageable) {
         teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
         return attendanceRepository.findByTeacherId(teacherId, pageable)
                 .map(this::convertToResponseDto);
     }
@@ -255,13 +217,9 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Transactional(readOnly = true)
     public List<TeachersAttendanceResponseDto> getAttendanceByTeacherAndDateRange(
             Long teacherId, LocalDate startDate, LocalDate endDate) {
-
         teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
-
-        return attendanceRepository.findByTeacherIdAndAttendanceDateBetween(
-                        teacherId, startDate, endDate).stream()
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
+        return attendanceRepository.findByTeacherIdAndAttendanceDateBetween(teacherId, startDate, endDate).stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
     }
@@ -270,13 +228,9 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Transactional(readOnly = true)
     public Page<TeachersAttendanceResponseDto> getAttendanceByTeacherAndDateRange(
             Long teacherId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
-
         teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
-
-        return attendanceRepository.findByTeacherIdAndAttendanceDateBetween(
-                        teacherId, startDate, endDate, pageable)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
+        return attendanceRepository.findByTeacherIdAndAttendanceDateBetween(teacherId, startDate, endDate, pageable)
                 .map(this::convertToResponseDto);
     }
 
@@ -316,12 +270,7 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
 
         List<TeachersAttendanceEntity> attendanceList = attendanceRepository.findByAttendanceDate(date);
 
-        // Count by status - MATCHING FRONTEND SUMMARY CARDS
-        long presentCount = 0;
-        long absentCount = 0;
-        long leaveCount = 0;
-        long lateCount = 0;
-        long halfDayCount = 0;
+        long presentCount = 0, absentCount = 0, leaveCount = 0, lateCount = 0, halfDayCount = 0;
 
         for (TeachersAttendanceEntity a : attendanceList) {
             switch (a.getStatus()) {
@@ -342,7 +291,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         statistics.put("lateCount", lateCount);
         statistics.put("halfDayCount", halfDayCount);
 
-        // Status breakdown map
         Map<String, Long> statusBreakdown = new HashMap<>();
         statusBreakdown.put("Present", presentCount);
         statusBreakdown.put("Absent", absentCount);
@@ -351,12 +299,9 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         statusBreakdown.put("Half Day", halfDayCount);
         statistics.put("statusBreakdown", statusBreakdown);
 
-        // Calculate attendance percentage
         long attendedCount = presentCount + lateCount + halfDayCount;
         long totalMarked = attendanceList.size();
-        double attendancePercentage = totalMarked > 0 ?
-                (attendedCount * 100.0) / totalMarked : 0.0;
-
+        double attendancePercentage = totalMarked > 0 ? (attendedCount * 100.0) / totalMarked : 0.0;
         statistics.put("attendancePercentage", Math.round(attendancePercentage * 100.0) / 100.0);
 
         return statistics;
@@ -366,8 +311,7 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Transactional(readOnly = true)
     public Map<String, Object> getMonthlyAttendanceSummary(Long teacherId, int year, int month) {
         TeacherEntity teacher = teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
 
         List<Object[]> summaryData = attendanceRepository.getTeacherMonthlyAttendanceSummary(teacherId, year, month);
 
@@ -384,12 +328,8 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         long halfDays = statusCount.getOrDefault("Half Day", 0L);
         long leaveDays = statusCount.getOrDefault("Leave", 0L);
         long totalDays = presentDays + absentDays + lateDays + halfDays + leaveDays;
-
-        // Working days = Present + Late + Half Day
         long workingDays = presentDays + lateDays + halfDays;
-
-        double attendancePercentage = totalDays > 0 ?
-                (workingDays * 100.0) / totalDays : 0.0;
+        double attendancePercentage = totalDays > 0 ? (workingDays * 100.0) / totalDays : 0.0;
 
         Map<String, Object> summary = new HashMap<>();
         summary.put("teacherId", teacherId);
@@ -414,14 +354,12 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Transactional(readOnly = true)
     public Map<String, Object> getDepartmentWiseAttendance(LocalDate date) {
         List<TeachersAttendanceEntity> attendanceList = attendanceRepository.findByAttendanceDate(date);
-
         Map<String, Map<String, Long>> deptStats = new HashMap<>();
 
         for (TeachersAttendanceEntity a : attendanceList) {
             if (a.getTeacher() != null) {
                 String department = a.getTeacher().getDepartment();
                 String status = a.getStatus();
-
                 deptStats.putIfAbsent(department, new HashMap<>());
                 Map<String, Long> statusMap = deptStats.get(department);
                 statusMap.put(status, statusMap.getOrDefault(status, 0L) + 1);
@@ -431,7 +369,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         Map<String, Object> result = new HashMap<>();
         result.put("date", date);
         result.put("departmentWise", deptStats);
-
         return result;
     }
 
@@ -439,8 +376,7 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Transactional(readOnly = true)
     public Map<String, Object> getTeacherCalendarData(Long teacherId, int year, int month) {
         TeacherEntity teacher = teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
 
         LocalDate startDate = LocalDate.of(year, month, 1);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
@@ -459,7 +395,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
 
         for (int day = 1; day <= startDate.lengthOfMonth(); day++) {
             LocalDate currentDate = LocalDate.of(year, month, day);
-
             Optional<TeachersAttendanceEntity> attendance = monthlyAttendance.stream()
                     .filter(a -> a.getAttendanceDate().equals(currentDate))
                     .findFirst();
@@ -480,7 +415,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
                 dayData.put("hasAttendance", false);
                 dayData.put("status", "Not Marked");
             }
-
             days.add(dayData);
         }
 
@@ -494,27 +428,23 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
             LocalDate date, String department, String status, String searchTerm) {
 
         List<TeachersAttendanceEntity> attendanceList = attendanceRepository.findByAttendanceDate(date);
-
         List<TeachersAttendanceResponseDto> result = new ArrayList<>();
 
         for (TeachersAttendanceEntity a : attendanceList) {
             boolean matches = true;
 
-            // Filter by department
             if (department != null && !department.isEmpty()) {
                 if (a.getTeacher() == null || !department.equals(a.getTeacher().getDepartment())) {
                     matches = false;
                 }
             }
 
-            // Filter by status
             if (matches && status != null && !status.isEmpty()) {
                 if (!status.equals(a.getStatus())) {
                     matches = false;
                 }
             }
 
-            // Search by name or teacher code
             if (matches && searchTerm != null && !searchTerm.isEmpty()) {
                 if (a.getTeacher() != null) {
                     String fullName = a.getTeacher().getFullName();
@@ -534,7 +464,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
                 result.add(convertToResponseDto(a));
             }
         }
-
         return result;
     }
 
@@ -547,12 +476,10 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     public TeachersAttendanceResponseDto markAsProcessedForSalary(Long attendanceId, Long salaryId) {
         TeachersAttendanceEntity attendance = attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Attendance not found with id: " + attendanceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Attendance not found with id: " + attendanceId));
 
         TeachersSalaryEntity salary = salaryRepository.findById(salaryId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Salary record not found with id: " + salaryId));
+                .orElseThrow(() -> new ResourceNotFoundException("Salary record not found with id: " + salaryId));
 
         attendance.setTeachersSalaryEntity(salary);
         attendance.setUpdatedAt(LocalDateTime.now());
@@ -564,15 +491,10 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> generateSalarySlipData(Long teacherId, int year, int month) {
-        // Get monthly summary first
         Map<String, Object> summary = getMonthlyAttendanceSummary(teacherId, year, month);
-
-        // Get teacher details
         TeacherEntity teacher = teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Teacher not found with id: " + teacherId));
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
 
-        // Calculate salary details
         Map<String, Object> salaryData = new HashMap<>();
         salaryData.put("teacherId", teacherId);
         salaryData.put("teacherName", teacher.getFullName());
@@ -580,24 +502,16 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         salaryData.put("department", teacher.getDepartment());
         salaryData.put("designation", teacher.getDesignation());
         salaryData.put("month", year + "-" + String.format("%02d", month));
-
-        // Attendance summary
         salaryData.put("workingDays", summary.get("workingDays"));
         salaryData.put("totalDays", summary.get("totalDays"));
         salaryData.put("attendancePercentage", summary.get("attendancePercentage"));
-
-        // Leave summary
         salaryData.put("leaveDays", summary.get("leaveDays"));
         salaryData.put("absentDays", summary.get("absentDays"));
-
-        // Get salary details from teacher entity
         salaryData.put("basicSalary", teacher.getBasicSalary() != null ? teacher.getBasicSalary() : 0.0);
         salaryData.put("hra", teacher.getHra() != null ? teacher.getHra() : 0.0);
         salaryData.put("da", teacher.getDa() != null ? teacher.getDa() : 0.0);
         salaryData.put("ta", teacher.getTa() != null ? teacher.getTa() : 0.0);
         salaryData.put("grossSalary", teacher.getGrossSalary() != null ? teacher.getGrossSalary() : 0.0);
-
-        // Placeholder for deductions and net salary
         salaryData.put("deductions", 0.0);
         salaryData.put("netSalary", teacher.getGrossSalary() != null ? teacher.getGrossSalary() : 0.0);
 
@@ -607,17 +521,21 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     // ========== CHECK-IN/CHECK-OUT METHODS ==========
 
     @Override
-    public TeachersAttendanceResponseDto checkIn(Long teacherId, LocalDate date) {
-        log.info("Check-in for teacher ID: {} on date: {}", teacherId, date);
+    public TeachersAttendanceResponseDto checkIn(Long teacherId, LocalDate date, String teacherCode) {
+        log.info("Check-in for teacher ID: {} on date: {} with code: {}", teacherId, date, teacherCode);
 
-        // Validate teacher exists
         TeacherEntity teacher = teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with ID: " + teacherId));
 
-        // Validate date
+        if (teacherCode != null && !teacherCode.isEmpty()) {
+            if (!teacherCode.equals(teacher.getTeacherCode())) {
+                log.warn("Teacher code mismatch. Provided: {}, Actual: {}", teacherCode, teacher.getTeacherCode());
+                throw new ValidationException("Invalid teacher code for this teacher");
+            }
+        }
+
         validateAttendanceDate(date);
 
-        // Check if attendance already exists
         Optional<TeachersAttendanceEntity> existingAttendance = attendanceRepository
                 .findByTeacherIdAndAttendanceDate(teacherId, date);
 
@@ -626,23 +544,20 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
 
         if (existingAttendance.isPresent()) {
             entity = existingAttendance.get();
-
-            // Check if already checked in
             if (entity.getCheckInTime() != null) {
                 throw new ValidationException("Teacher already checked in at: " + entity.getCheckInTime());
             }
-
-            // Update existing record
             entity.setCheckInTime(now);
+            entity.setStatus("Present");
             entity.setUpdatedAt(LocalDateTime.now());
             log.info("Updated existing attendance with check-in time: {}", now);
         } else {
-            // Create new attendance record
             entity = new TeachersAttendanceEntity();
             entity.setTeacher(teacher);
             entity.setTeacherCode(teacher.getTeacherCode());
             entity.setAttendanceDate(date);
             entity.setCheckInTime(now);
+            entity.setStatus("Present");
             entity.setCreatedAt(LocalDateTime.now());
             entity.setUpdatedAt(LocalDateTime.now());
             log.info("Created new attendance record with check-in time: {}", now);
@@ -650,40 +565,44 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
 
         TeachersAttendanceEntity saved = attendanceRepository.save(entity);
         log.info("Check-in completed successfully with ID: {}", saved.getId());
-
         return convertToResponseDto(saved);
     }
 
     @Override
-    public TeachersAttendanceResponseDto checkOut(Long teacherId, LocalDate date) {
-        log.info("Check-out for teacher ID: {} on date: {}", teacherId, date);
+    public TeachersAttendanceResponseDto checkOut(Long teacherId, LocalDate date, String teacherCode) {
+        log.info("Check-out for teacher ID: {} on date: {} with code: {}", teacherId, date, teacherCode);
 
-        // Validate date
         validateAttendanceDate(date);
 
-        // Find existing attendance
         TeachersAttendanceEntity entity = attendanceRepository
                 .findByTeacherIdAndAttendanceDate(teacherId, date)
                 .orElseThrow(() -> new ValidationException("No attendance record found for teacher ID: " + teacherId));
 
-        // Check if checked in
+        if (teacherCode != null && !teacherCode.isEmpty()) {
+            if (entity.getTeacher() != null && !teacherCode.equals(entity.getTeacher().getTeacherCode())) {
+                throw new ValidationException("Invalid teacher code for this attendance record");
+            }
+        }
+
         if (entity.getCheckInTime() == null) {
             throw new ValidationException("Teacher has not checked in yet");
         }
 
-        // Check if already checked out
         if (entity.getCheckOutTime() != null) {
             throw new ValidationException("Teacher already checked out at: " + entity.getCheckOutTime());
         }
 
-        // Set check-out time
         LocalTime now = LocalTime.now();
         entity.setCheckOutTime(now);
         entity.setUpdatedAt(LocalDateTime.now());
 
+        if (entity.getCheckInTime() != null) {
+            long minutes = java.time.Duration.between(entity.getCheckInTime(), now).toMinutes();
+            log.info("Teacher worked for {} minutes", minutes);
+        }
+
         TeachersAttendanceEntity saved = attendanceRepository.save(entity);
         log.info("Check-out completed successfully at: {}", now);
-
         return convertToResponseDto(saved);
     }
 
@@ -691,7 +610,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     public List<Map<String, Object>> getTeachersWithoutCheckIn() {
         log.info("Fetching teachers who haven't checked in today");
         LocalDate today = LocalDate.now();
-
         List<TeacherEntity> teachersWithoutCheckIn = attendanceRepository.findTeachersWithoutCheckIn(today);
 
         return teachersWithoutCheckIn.stream().map(teacher -> {
@@ -708,9 +626,7 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     public List<TeachersAttendanceResponseDto> getTeachersWithoutCheckOut() {
         log.info("Fetching teachers who haven't checked out today");
         LocalDate today = LocalDate.now();
-
         List<TeachersAttendanceEntity> withoutCheckOut = attendanceRepository.findTeachersWithoutCheckOut(today);
-
         return withoutCheckOut.stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
@@ -719,13 +635,10 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     public List<TeachersAttendanceResponseDto> getLateCheckIns(LocalDate date, String lateThreshold) {
         log.info("Fetching late check-ins for date: {} with threshold: {}", date, lateThreshold);
-
         LocalTime threshold = lateThreshold != null ?
                 LocalTime.parse(lateThreshold, DateTimeFormatter.ofPattern("HH:mm:ss")) :
                 DEFAULT_LATE_THRESHOLD;
-
         List<TeachersAttendanceEntity> lateCheckIns = attendanceRepository.findLateCheckIns(date, threshold);
-
         return lateCheckIns.stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
@@ -734,7 +647,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     public Map<String, Object> getCheckInOutStatistics(LocalDate date) {
         log.info("Getting check-in/out statistics for date: {}", date);
-
         long checkedIn = attendanceRepository.countCheckedInByDate(date);
         long checkedOut = attendanceRepository.countCheckedOutByDate(date);
         long totalTeachers = teacherRepository.countByIsDeletedFalse();
@@ -746,7 +658,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         stats.put("checkedOut", checkedOut);
         stats.put("pendingCheckIn", totalTeachers - checkedIn);
         stats.put("pendingCheckOut", checkedIn - checkedOut);
-
         return stats;
     }
 
@@ -773,10 +684,8 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     public List<TeachersAttendanceResponseDto> getTeacherCheckInOutHistory(Long teacherId, LocalDate startDate, LocalDate endDate) {
         log.info("Fetching check-in/out history for teacher {} from {} to {}", teacherId, startDate, endDate);
-
         List<TeachersAttendanceEntity> attendanceList = attendanceRepository
                 .findByTeacherIdAndAttendanceDateBetween(teacherId, startDate, endDate);
-
         return attendanceList.stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
@@ -785,7 +694,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
     @Override
     public Map<String, Object> getMonthlyCheckInOutSummary(Long teacherId, int year, int month) {
         log.info("Getting monthly check-in/out summary for teacher {} - {}/{}", teacherId, year, month);
-
         List<TeachersAttendanceEntity> attendanceList = attendanceRepository
                 .findTeacherAttendanceByMonth(teacherId, year, month);
 
@@ -813,18 +721,17 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         summary.put("totalCheckIns", totalCheckIns);
         summary.put("totalCheckOuts", totalCheckOuts);
         summary.put("dailySummary", dailySummary);
-
         return summary;
     }
 
-    // Helper method to validate status
+    // ========== HELPER METHODS ==========
+
     private void validateStatus(String status) {
         if (status == null || !VALID_STATUSES.contains(status)) {
             throw new ValidationException("Invalid status. Must be one of: " + VALID_STATUSES);
         }
     }
 
-    // Helper method to validate attendance date
     private void validateAttendanceDate(LocalDate date) {
         LocalDate today = LocalDate.now();
         if (date.isAfter(today)) {
@@ -836,10 +743,8 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
         }
     }
 
-    // Helper method to convert entity to response DTO - UPDATED to include check-in/out times
     private TeachersAttendanceResponseDto convertToResponseDto(TeachersAttendanceEntity entity) {
         TeachersAttendanceResponseDto dto = new TeachersAttendanceResponseDto();
-
         dto.setId(entity.getId());
 
         if (entity.getTeacher() != null) {
@@ -848,7 +753,6 @@ public class TeachersAttendanceServiceImpl implements TeachersAttendanceService 
             dto.setTeacherName(entity.getTeacher().getFullName());
             dto.setDepartment(entity.getTeacher().getDepartment());
 
-            // Generate profile image URL from teacher code
             String teacherCode = entity.getTeacher().getTeacherCode();
             if (teacherCode != null && !teacherCode.isEmpty()) {
                 dto.setProfileImageUrl("https://i.pravatar.cc/64?u=" + teacherCode);

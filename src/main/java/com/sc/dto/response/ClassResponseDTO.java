@@ -88,3 +88,8 @@ public class ClassResponseDTO {
     public List<TeacherSubjectAssignmentDTO> getOtherTeacherSubject() { return otherTeacherSubject; }
     public void setOtherTeacherSubject(List<TeacherSubjectAssignmentDTO> otherTeacherSubject) { this.otherTeacherSubject = otherTeacherSubject; }
 }
+
+
+
+
+

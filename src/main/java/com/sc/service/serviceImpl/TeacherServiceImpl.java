@@ -618,11 +618,13 @@ public class TeacherServiceImpl implements TeacherService {
         return entity;
     }
 
+// In TeacherServiceImpl.java, update the convertToResponseDto method:
+
     private TeacherResponseDto convertToResponseDto(TeacherEntity entity) {
         TeacherResponseDto dto = new TeacherResponseDto();
 
-        // IDs - FIXED: Now includes the numeric ID
-        dto.setId(entity.getId());  // <-- ADD THIS LINE (CRITICAL FIX)
+        // IDs
+        dto.setId(entity.getId());
         dto.setTeacherCode(entity.getTeacherCode());
         dto.setEmployeeId(entity.getEmployeeId());
 
@@ -730,6 +732,15 @@ public class TeacherServiceImpl implements TeacherService {
         dto.setCreatedBy(entity.getCreatedBy());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setLastUpdated(entity.getLastUpdated());
+
+        // ✅ FIX: Add photo URL (if you have a way to serve photos)
+        // Option 1: If you store photos as files with URLs
+        // dto.setTeacherPhotoUrl(entity.getTeacherPhotoUrl());
+
+        // Option 2: If you want to create a URL to fetch the photo
+        if (entity.getTeacherPhoto() != null) {
+            dto.setTeacherPhotoUrl("/api/teachers/photo/" + entity.getId());
+        }
 
         return dto;
     }

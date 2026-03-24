@@ -92,6 +92,20 @@ public class TeachersController {
         }
     }
 
+    // Add this to your TeachersController.java
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllTeachersAlternate() {
+        logger.info("GET /api/teachers/all - Fetching all teachers (alternate endpoint)");
+        try {
+            List<TeacherResponseDto> teachers = teacherService.getAllTeachers();
+            return ResponseEntity.ok(createSuccessResponse("Teachers retrieved successfully", teachers));
+        } catch (Exception e) {
+            logger.error("Error fetching teachers: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createErrorResponse("Failed to fetch teachers"));
+        }
+    }
+
     // ========== READ ENDPOINTS ==========
 
     // GET ALL TEACHERS

@@ -1,5 +1,6 @@
 package com.sc.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.Date;
@@ -47,6 +48,7 @@ public class ClassEntity {
     // 🔴 FIXED: Proper ManyToOne relationship with Teacher
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_teacher_id")
+    @JsonIgnore  // Add this to prevent circular reference
     private TeacherEntity classTeacher;
 
     @Column(name = "class_teacher_subject")
@@ -55,6 +57,7 @@ public class ClassEntity {
     // 🔴 FIXED: Proper ManyToOne relationship with Teacher for assistant
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assistant_teacher_id")
+    @JsonIgnore  // Add this to prevent circular reference
     private TeacherEntity assistantTeacher;
 
     @Column(name = "assistant_teacher_subject")
@@ -82,10 +85,12 @@ public class ClassEntity {
 
     // 🔴 NEW: Relationship with Assignments
     @OneToMany(mappedBy = "targetClass", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore  // Add this to prevent circular reference
     private List<AssignmentEntity> assignments = new ArrayList<>();
 
     // 🔴 NEW: Relationship with Students through Enrollments
     @OneToMany(mappedBy = "classEntity", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore  // Add this to prevent circular reference
     private List<StudentClassEnrollment> enrollments = new ArrayList<>();
 
     // Transient fields for easy access
@@ -94,6 +99,16 @@ public class ClassEntity {
 
     @Transient
     private List<String> workingDays = new ArrayList<>();
+
+    // Add this method to get teacher name
+    public String getClassTeacherName() {
+        return classTeacher != null ? classTeacher.getFullName() : null;
+    }
+
+    public String getAssistantTeacherName() {
+        return assistantTeacher != null ? assistantTeacher.getFullName() : null;
+    }
+
 
     // Constructors
     public ClassEntity() {

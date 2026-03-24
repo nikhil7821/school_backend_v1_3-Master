@@ -25,6 +25,10 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public ClassResponseDTO createClass(ClassCreateRequestDTO request) {
+        System.out.println("===== CREATE CLASS DEBUG =====");
+        System.out.println("Request classTeacherSubject: " + request.getClassTeacherSubject());
+        System.out.println("Request assistantTeacherSubject: " + request.getAssistantTeacherSubject());
+
         if (isClassCodeExists(request.getClassCode())) {
             throw new IllegalArgumentException("Class code already exists: " + request.getClassCode());
         }
@@ -32,9 +36,19 @@ public class ClassServiceImpl implements ClassService {
         ClassEntity classEntity = new ClassEntity();
         mapRequestToEntity(request, classEntity);
 
-        classEntity.onCreate();           // populate JSON
+        // Debug after mapping
+        System.out.println("After mapping - classTeacherSubject: " + classEntity.getClassTeacherSubject());
+        System.out.println("After mapping - assistantTeacherSubject: " + classEntity.getAssistantTeacherSubject());
+
+        classEntity.onCreate();
 
         ClassEntity savedEntity = classRepository.save(classEntity);
+
+        // Debug after save
+        System.out.println("After save - classTeacherSubject: " + savedEntity.getClassTeacherSubject());
+        System.out.println("After save - assistantTeacherSubject: " + savedEntity.getAssistantTeacherSubject());
+        System.out.println("==============================");
+
         return mapEntityToResponse(savedEntity);
     }
 
@@ -90,6 +104,15 @@ public class ClassServiceImpl implements ClassService {
     @Override
     public List<ClassResponseDTO> getAllClasses() {
         List<ClassEntity> classes = classRepository.findAllActiveClasses();
+
+        System.out.println("===== GET ALL CLASSES DEBUG =====");
+        for (ClassEntity c : classes) {
+            System.out.println("Class: " + c.getClassCode() +
+                    ", CT Subject: " + c.getClassTeacherSubject() +
+                    ", AT Subject: " + c.getAssistantTeacherSubject());
+        }
+        System.out.println("==================================");
+
         return classes.stream()
                 .map(this::mapEntityToResponse)
                 .collect(Collectors.toList());

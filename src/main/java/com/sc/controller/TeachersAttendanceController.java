@@ -18,9 +18,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// Add this import
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping("/api/teachers-attendance")
 public class TeachersAttendanceController {
+
+    // Add this line to initialize the logger
+    private static final Logger log = LoggerFactory.getLogger(TeachersAttendanceController.class);
 
     @Autowired
     private TeachersAttendanceService attendanceService;
@@ -33,7 +40,7 @@ public class TeachersAttendanceController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    // POST: Mark bulk attendance - UPDATED return type
+    // POST: Mark bulk attendance
     @PostMapping("/bulk")
     public ResponseEntity<Map<String, Object>> markBulkAttendance(
             @RequestBody List<TeachersAttendanceRequestDto> requestDtos) {
@@ -228,25 +235,35 @@ public class TeachersAttendanceController {
 
     /**
      * POST: Check-in a teacher
-     * URL: /api/teachers-attendance/check-in?teacherId=1&date=2024-03-09
+     * URL: /api/teachers-attendance/check-in?teacherId=1&date=2024-03-09&teacherCode=TCH001
      */
     @PostMapping("/check-in")
     public ResponseEntity<TeachersAttendanceResponseDto> checkIn(
             @RequestParam Long teacherId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        TeachersAttendanceResponseDto response = attendanceService.checkIn(teacherId, date);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String teacherCode) {
+
+        log.info("Check-in request - Teacher ID: {}, Date: {}, Teacher Code: {}",
+                teacherId, date, teacherCode);
+
+        TeachersAttendanceResponseDto response = attendanceService.checkIn(teacherId, date, teacherCode);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     /**
      * POST: Check-out a teacher
-     * URL: /api/teachers-attendance/check-out?teacherId=1&date=2024-03-09
+     * URL: /api/teachers-attendance/check-out?teacherId=1&date=2024-03-09&teacherCode=TCH001
      */
     @PostMapping("/check-out")
     public ResponseEntity<TeachersAttendanceResponseDto> checkOut(
             @RequestParam Long teacherId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        TeachersAttendanceResponseDto response = attendanceService.checkOut(teacherId, date);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String teacherCode) {
+
+        log.info("Check-out request - Teacher ID: {}, Date: {}, Teacher Code: {}",
+                teacherId, date, teacherCode);
+
+        TeachersAttendanceResponseDto response = attendanceService.checkOut(teacherId, date, teacherCode);
         return ResponseEntity.ok(response);
     }
 
@@ -276,5 +293,88 @@ public class TeachersAttendanceController {
         Map<String, Boolean> response = new HashMap<>();
         response.put("hasCheckedOut", hasCheckedOut);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET: Get teachers without check-in for today
+     * URL: /api/teachers-attendance/without-checkin
+     */
+    @GetMapping("/without-checkin")
+    public ResponseEntity<List<Map<String, Object>>> getTeachersWithoutCheckIn() {
+        List<Map<String, Object>> teachers = attendanceService.getTeachersWithoutCheckIn();
+        return ResponseEntity.ok(teachers);
+    }
+
+    /**
+     * GET: Get teachers without check-out for today
+     * URL: /api/teachers-attendance/without-checkout
+     */
+    @GetMapping("/without-checkout")
+    public ResponseEntity<List<TeachersAttendanceResponseDto>> getTeachersWithoutCheckOut() {
+        List<TeachersAttendanceResponseDto> teachers = attendanceService.getTeachersWithoutCheckOut();
+        return ResponseEntity.ok(teachers);
+    }
+
+    /**
+     * GET: Get late check-ins for a date
+     * URL: /api/teachers-attendance/late-checkins?date=2024-03-09&threshold=09:00:00
+     */
+    @GetMapping("/late-checkins")
+    public ResponseEntity<List<TeachersAttendanceResponseDto>> getLateCheckIns(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String threshold) {
+        List<TeachersAttendanceResponseDto> lateCheckIns = attendanceService.getLateCheckIns(date, threshold);
+        return ResponseEntity.ok(lateCheckIns);
+    }
+
+    /**
+     * GET: Get check-in/out statistics for a date
+     * URL: /api/teachers-attendance/checkinout-stats?date=2024-03-09
+     */
+    @GetMapping("/checkinout-stats")
+    public ResponseEntity<Map<String, Object>> getCheckInOutStatistics(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        if (date == null) {
+            date = LocalDate.now();
+        }
+        Map<String, Object> stats = attendanceService.getCheckInOutStatistics(date);
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * GET: Get today's check-in/out summary
+     * URL: /api/teachers-attendance/today-summary
+     */
+    @GetMapping("/today-summary")
+    public ResponseEntity<Map<String, Object>> getTodayCheckInOutSummary() {
+        Map<String, Object> summary = attendanceService.getTodayCheckInOutSummary();
+        return ResponseEntity.ok(summary);
+    }
+
+    /**
+     * GET: Get teacher check-in/out history
+     * URL: /api/teachers-attendance/teacher/{teacherId}/checkinout-history?startDate=2024-03-01&endDate=2024-03-31
+     */
+    @GetMapping("/teacher/{teacherId}/checkinout-history")
+    public ResponseEntity<List<TeachersAttendanceResponseDto>> getTeacherCheckInOutHistory(
+            @PathVariable Long teacherId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        List<TeachersAttendanceResponseDto> history = attendanceService
+                .getTeacherCheckInOutHistory(teacherId, startDate, endDate);
+        return ResponseEntity.ok(history);
+    }
+
+    /**
+     * GET: Get monthly check-in/out summary
+     * URL: /api/teachers-attendance/teacher/{teacherId}/monthly-checkinout?year=2024&month=3
+     */
+    @GetMapping("/teacher/{teacherId}/monthly-checkinout")
+    public ResponseEntity<Map<String, Object>> getMonthlyCheckInOutSummary(
+            @PathVariable Long teacherId,
+            @RequestParam int year,
+            @RequestParam int month) {
+        Map<String, Object> summary = attendanceService.getMonthlyCheckInOutSummary(teacherId, year, month);
+        return ResponseEntity.ok(summary);
     }
 }
