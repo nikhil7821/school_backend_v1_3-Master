@@ -1,14 +1,18 @@
 package com.sc.controller;
 
+import com.sc.bcrypt.BcryptEncoderConfig;
 import com.sc.dto.request.TeacherRequestDto;
 import com.sc.dto.response.TeacherResponseDto;
+import com.sc.entity.TeacherEntity;
 import com.sc.service.TeacherService;
+import com.sc.repository.TeacherRepository;  // ✅ ADD THIS
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +36,11 @@ public class TeachersController {
         this.teacherService = teacherService;
     }
 
+    @Autowired
+    private BcryptEncoderConfig passwordEncoder;
+
+    @Autowired
+    private TeacherRepository teacherRepository;
     // ========== CREATE ENDPOINT ==========
     @PostMapping(value = "/create-teacher", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createTeacher(
@@ -290,6 +299,71 @@ public class TeachersController {
         }
     }
 
+    @PostMapping("/authenticate-by-phone")
+    public ResponseEntity<?> authenticateByPhone(@RequestBody Map<String, String> credentials) {
+        String contactNumber = credentials.get("contactNumber");
+        String password = credentials.get("password");
+
+        logger.info("Authenticating teacher by phone: {}", contactNumber);
+
+        if (contactNumber == null || contactNumber.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Contact number is required",
+                    "authenticated", false
+            ));
+        }
+
+        try {
+            Optional<TeacherEntity> teacherOpt = teacherRepository.findByContactNumber(contactNumber);
+
+            if (teacherOpt.isEmpty()) {
+                logger.warn("Teacher not found with contact number: {}", contactNumber);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "authenticated", false,
+                        "error", "Invalid contact number or password"
+                ));
+            }
+
+            TeacherEntity teacher = teacherOpt.get();
+
+            if (teacher.isDeleted()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "authenticated", false,
+                        "error", "Teacher account has been deleted"
+                ));
+            }
+
+            if (!Boolean.TRUE.equals(teacher.getActive())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "authenticated", false,
+                        "error", "Teacher account is inactive"
+                ));
+            }
+
+            boolean authenticated = teacherService.authenticateTeacher(teacher.getEmployeeId(), password);
+
+            if (authenticated) {
+                TeacherResponseDto teacherDto = teacherService.getTeacherByEmployeeId(teacher.getEmployeeId());
+                Map<String, Object> response = new HashMap<>();
+                response.put("authenticated", true);
+                response.put("teacher", teacherDto);
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "authenticated", false,
+                        "error", "Invalid contact number or password"
+                ));
+            }
+
+        } catch (Exception e) {
+            logger.error("Error authenticating by phone", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "authenticated", false,
+                    "error", "Authentication failed"
+            ));
+        }
+    }
+
     // UPDATE TEACHER PASSWORD
     @PatchMapping("/update-teacher-password/{teacherCode}")
     public ResponseEntity<?> updateTeacherPassword(
@@ -435,30 +509,102 @@ public class TeachersController {
 
     // ========== AUTHENTICATION ENDPOINTS ==========
 
+// ========== AUTHENTICATION ENDPOINTS ==========
+
     @PostMapping("/authenticate")
     public ResponseEntity<?> authenticate(@RequestBody Map<String, String> credentials) {
         String employeeId = credentials.get("employeeId");
         String password = credentials.get("password");
 
-        logger.info("POST /api/teachers/authenticate - Authenticating employee: {}", employeeId);
+        logger.info("=== TEACHER AUTHENTICATION DEBUG ===");
+        logger.info("Employee ID received: {}", employeeId);
+        logger.info("Password received: {}", password != null ? "YES (length: " + password.length() + ")" : "NO");
+
+        if (employeeId == null || employeeId.trim().isEmpty()) {
+            logger.warn("Employee ID is missing");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Employee ID is required",
+                    "authenticated", false
+            ));
+        }
+
+        if (password == null || password.trim().isEmpty()) {
+            logger.warn("Password is missing for employee: {}", employeeId);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Password is required",
+                    "authenticated", false
+            ));
+        }
 
         try {
+            // First check if teacher exists in database
+            Optional<TeacherEntity> teacherOpt = teacherRepository.findByEmployeeId(employeeId);
+
+            if (teacherOpt.isEmpty()) {
+                logger.warn("Teacher NOT FOUND with employeeId: {}", employeeId);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "authenticated", false,
+                        "error", "Invalid employee ID or password"
+                ));
+            }
+
+            TeacherEntity teacher = teacherOpt.get();
+            logger.info("Teacher found: {}", teacher.getEmployeeId());
+            logger.info("Teacher active status: {}", teacher.getActive());
+            logger.info("Teacher deleted status: {}", teacher.isDeleted());
+            logger.info("Stored password hash exists: {}", teacher.getTeacherPassword() != null);
+
+            if (teacher.getTeacherPassword() != null) {
+                logger.info("Stored password hash: {}", teacher.getTeacherPassword().substring(0, Math.min(30, teacher.getTeacherPassword().length())) + "...");
+            }
+
+            // Check if teacher is deleted
+            if (teacher.isDeleted()) {
+                logger.warn("Teacher account is deleted: {}", employeeId);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "authenticated", false,
+                        "error", "Teacher account has been deleted. Please contact administrator."
+                ));
+            }
+
+            // Check if teacher is active
+            if (!Boolean.TRUE.equals(teacher.getActive())) {
+                logger.warn("Teacher account is inactive: {}", employeeId);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "authenticated", false,
+                        "error", "Teacher account is inactive. Please contact administrator."
+                ));
+            }
+
+            // Verify password
             boolean authenticated = teacherService.authenticateTeacher(employeeId, password);
+            logger.info("Password authentication result: {}", authenticated);
 
             if (authenticated) {
-                TeacherResponseDto teacher = teacherService.getTeacherByEmployeeId(employeeId);
+                TeacherResponseDto teacherDto = teacherService.getTeacherByEmployeeId(employeeId);
                 Map<String, Object> response = new HashMap<>();
                 response.put("authenticated", true);
-                response.put("teacher", teacher);
+                response.put("teacher", teacherDto);
+                response.put("message", "Authentication successful");
+
+                logger.info("Teacher authenticated successfully: {}", employeeId);
                 return ResponseEntity.ok(response);
             } else {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(createErrorResponse("Invalid credentials"));
+                logger.warn("Invalid password for teacher: {}", employeeId);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "authenticated", false,
+                        "error", "Invalid employee ID or password"
+                ));
             }
+
         } catch (Exception e) {
-            logger.error("Error authenticating: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Authentication failed"));
+            logger.error("Unexpected error during teacher authentication", e);
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "authenticated", false,
+                    "error", "Authentication failed: " + e.getMessage(),
+                    "errorType", e.getClass().getSimpleName()
+            ));
         }
     }
 

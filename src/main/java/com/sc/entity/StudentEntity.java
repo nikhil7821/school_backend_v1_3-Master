@@ -9,6 +9,17 @@ import java.util.List;
 @Table(name = "students")
 public class StudentEntity {
 
+    @Column(name = "role", nullable = false)
+    private String role = "STUDENT";  // Static default role
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long stdId;

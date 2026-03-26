@@ -2,6 +2,7 @@ package com.sc.service;
 
 import com.sc.dto.request.StudentRequestDto;
 import com.sc.dto.response.StudentResponseDto;
+import com.sc.entity.StudentEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +20,27 @@ public interface StudentService {
     // List<StudentResponseDto> getAllStudents();
 
     Page<StudentResponseDto> getAllStudents(Pageable pageable);
+
+    // ============= ✅ ADD THESE AUTHENTICATION METHODS =============
+
+    /**
+     * Authenticate student by Student ID
+     */
+    boolean authenticateStudent(String studentId, String rawPassword);
+
+    /**
+     * Authenticate student by Roll Number
+     */
+    boolean authenticateStudentByRollNumber(String rollNumber, String rawPassword);
+
+    /**
+     * Get student by identifier (studentId or rollNumber)
+     */
+    StudentEntity getStudentByIdentifier(String identifier);
+
+    StudentEntity getStudentByStudentIdEntity(String studentId);
+
+
 
 
 

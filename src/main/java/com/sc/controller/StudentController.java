@@ -1,10 +1,17 @@
 package com.sc.controller;
 
+import com.sc.bcrypt.BcryptEncoderConfig;
 import com.sc.dto.request.StudentRequestDto;
 import com.sc.dto.response.StudentResponseDto;
+import com.sc.entity.ClassEntity;
+import com.sc.entity.StudentClassEnrollment;
+import com.sc.entity.StudentEntity;
+import com.sc.repository.ClassRepository;
+import com.sc.repository.StudentRepository;
 import com.sc.service.StudentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.sc.util.StudentIdGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/students")
@@ -34,6 +39,19 @@ public class StudentController {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    // Add these fields in the class (with your other @Autowired fields)
+    @Autowired
+    private StudentRepository studentRepository;
+
+    @Autowired
+    private ClassRepository classRepository;
+
+    @Autowired
+    private StudentIdGenerator studentIdGenerator;
+
+    @Autowired
+    private BcryptEncoderConfig passwordEncoder;
 
     // ============= 📝 CREATE STUDENT =============
 
@@ -99,6 +117,97 @@ public class StudentController {
         } catch (Exception e) {
             logger.error("Error creating student with files: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/test-create")
+    public ResponseEntity<?> testCreate(@RequestBody StudentRequestDto requestDto) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            result.put("step1", "Received request");
+            result.put("classId", requestDto.getClassId());
+
+            // Step 2: Check if class exists
+            result.put("step2", "Checking class existence");
+            Optional<ClassEntity> classOpt = classRepository.findById(requestDto.getClassId());
+            if (classOpt.isEmpty()) {
+                result.put("error", "Class not found with ID: " + requestDto.getClassId());
+                return ResponseEntity.badRequest().body(result);
+            }
+            result.put("classFound", classOpt.get().getClassName());
+
+            // Step 3: Generate roll number
+            result.put("step3", "Generating roll number");
+            String rollNumber = studentIdGenerator.generateUniqueRollNumber(
+                    classOpt.get().getClassName(),
+                    classOpt.get().getSection()
+            );
+            result.put("rollNumber", rollNumber);
+
+            // Step 4: Generate student ID
+            result.put("step4", "Generating student ID");
+            String studentId = studentIdGenerator.generateUniqueStudentId();
+            result.put("studentId", studentId);
+
+            // Step 5: Create entity
+            result.put("step5", "Creating entity");
+            StudentEntity student = new StudentEntity();
+            student.setStudentId(studentId);
+            student.setStudentRollNumber(rollNumber);
+            student.setFirstName(requestDto.getFirstName());
+            student.setLastName(requestDto.getLastName());
+            if (requestDto.getMiddleName() != null) {
+                student.setMiddleName(requestDto.getMiddleName());
+            }
+
+            // Step 6: Encrypt password
+            result.put("step6", "Encrypting password");
+            if (requestDto.getStudentPassword() != null && !requestDto.getStudentPassword().isEmpty()) {
+                String encrypted = passwordEncoder.encode(requestDto.getStudentPassword());
+                student.setStudentPassword(encrypted);
+                result.put("passwordEncrypted", true);
+            } else {
+                result.put("passwordEncrypted", false);
+                result.put("passwordError", "Password is null or empty");
+            }
+
+            // Step 7: Set role
+            result.put("step7", "Setting role");
+            student.setRole("STUDENT");
+            student.setStatus("Active");
+            student.setDateOfBirth(requestDto.getDateOfBirth());
+            student.setGender(requestDto.getGender());
+            student.setAadharNumber(requestDto.getAadharNumber());
+            student.setFatherName(requestDto.getFatherName());
+            student.setFatherPhone(requestDto.getFatherPhone());
+
+            // Step 8: Create enrollment
+            result.put("step8", "Creating enrollment");
+            StudentClassEnrollment enrollment = new StudentClassEnrollment(student, classOpt.get());
+            student.addEnrollment(enrollment);
+            student.setCurrentClass(classOpt.get().getClassName());
+            student.setSection(classOpt.get().getSection());
+            student.setAcademicYear(classOpt.get().getAcademicYear());
+
+            // Step 9: Save student
+            result.put("step9", "Saving to database");
+            StudentEntity saved = studentRepository.save(student);
+            result.put("savedId", saved.getStdId());
+            result.put("savedStudentId", saved.getStudentId());
+            result.put("savedRollNumber", saved.getStudentRollNumber());
+
+            result.put("success", true);
+            result.put("message", "Student created successfully");
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            result.put("errorType", e.getClass().getSimpleName());
+            result.put("stackTrace", e.toString());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(result);
         }
     }
 
@@ -180,6 +289,87 @@ public class StudentController {
             logger.error("Error getting student by student ID {}: {}", studentId, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error getting student: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/authenticate")
+    public ResponseEntity<?> authenticate(@RequestBody Map<String, String> credentials) {
+        // Try to get identifier from both possible field names
+        String identifier = credentials.get("identifier");
+        if (identifier == null) {
+            identifier = credentials.get("studentId");  // ✅ Also accept "studentId"
+        }
+        String password = credentials.get("password");
+
+        logger.info("Student authentication attempt for: {}", identifier);
+
+        if (identifier == null || identifier.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "authenticated", false,
+                    "error", "Student ID or Roll Number is required"
+            ));
+        }
+
+        if (password == null || password.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "authenticated", false,
+                    "error", "Password is required"
+            ));
+        }
+
+        try {
+            // Find student by identifier
+            StudentEntity student = studentService.getStudentByIdentifier(identifier);
+
+            if (student == null) {
+                logger.warn("Student not found with identifier: {}", identifier);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "authenticated", false,
+                        "error", "Invalid Student ID or password"
+                ));
+            }
+
+            // Check if student is active
+            if (!"Active".equals(student.getStatus())) {
+                logger.warn("Student account is inactive: {}", identifier);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "authenticated", false,
+                        "error", "Student account is inactive. Please contact administrator."
+                ));
+            }
+
+            // Verify password
+            boolean authenticated = studentService.authenticateStudent(student.getStudentId(), password);
+            logger.info("Password authentication result: {}", authenticated);
+
+            if (authenticated) {
+                // Create response with student data and role
+                Map<String, Object> response = new HashMap<>();
+                response.put("authenticated", true);
+                response.put("studentId", student.getStudentId());
+                response.put("rollNumber", student.getStudentRollNumber());
+                response.put("name", student.getFirstName() + " " + (student.getLastName() != null ? student.getLastName() : ""));
+                response.put("currentClass", student.getCurrentClass());
+                response.put("section", student.getSection());
+                response.put("role", student.getRole() != null ? student.getRole() : "STUDENT");
+                response.put("message", "Login successful");
+
+                logger.info("Student authenticated successfully: {}", student.getStudentId());
+                return ResponseEntity.ok(response);
+            } else {
+                logger.warn("Invalid password for student: {}", identifier);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                        "authenticated", false,
+                        "error", "Invalid Student ID or password"
+                ));
+            }
+
+        } catch (Exception e) {
+            logger.error("Error during student authentication", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "authenticated", false,
+                    "error", "Authentication failed: " + e.getMessage()
+            ));
         }
     }
 

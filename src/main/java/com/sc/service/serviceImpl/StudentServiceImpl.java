@@ -1,5 +1,6 @@
 package com.sc.service.serviceImpl;
 
+import com.sc.bcrypt.BcryptEncoderConfig;
 import com.sc.dto.request.FeesRequestDto;
 import com.sc.dto.request.StudentRequestDto;
 import com.sc.dto.response.FeesResponseDto;
@@ -47,25 +48,126 @@ public class StudentServiceImpl implements StudentService {
     @Autowired
     private ClassService classService;
 
+    // ✅ ADD THIS - Password Encoder
+    @Autowired
+    private BcryptEncoderConfig passwordEncoder;
 
+
+
+    // In StudentServiceImpl
+    @Override
+    public StudentEntity getStudentByStudentIdEntity(String studentId) {
+        return studentRepository.findByStudentId(studentId);
+    }
+// ============= ✅ AUTHENTICATION METHODS =============
+
+    @Override
+    public boolean authenticateStudent(String studentId, String rawPassword) {
+        logger.info("Authenticating student with studentId: {}", studentId);
+
+        StudentEntity student = studentRepository.findByStudentId(studentId);
+
+        if (student == null) {
+            logger.warn("Student not found with studentId: {}", studentId);
+            return false;
+        }
+
+        // Check if student is active
+        if (!"Active".equals(student.getStatus())) {
+            logger.warn("Student account is inactive: {}", studentId);
+            return false;
+        }
+
+        String storedHash = student.getStudentPassword();
+
+        if (storedHash == null || rawPassword == null) {
+            logger.warn("Null password for student: {}", studentId);
+            return false;
+        }
+
+        boolean matches = passwordEncoder.matches(rawPassword, storedHash);
+
+        if (matches) {
+            logger.info("Student authenticated successfully: {}", studentId);
+        } else {
+            logger.warn("Invalid password for student: {}", studentId);
+        }
+
+        return matches;
+    }
+
+    @Override
+    public boolean authenticateStudentByRollNumber(String rollNumber, String rawPassword) {
+        logger.info("Authenticating student with roll number: {}", rollNumber);
+
+        StudentEntity student = studentRepository.findByStudentRollNumber(rollNumber);
+
+        if (student == null) {
+            logger.warn("Student not found with roll number: {}", rollNumber);
+            return false;
+        }
+
+        // Check if student is active
+        if (!"Active".equals(student.getStatus())) {
+            logger.warn("Student account is inactive: {}", rollNumber);
+            return false;
+        }
+
+        String storedHash = student.getStudentPassword();
+
+        if (storedHash == null || rawPassword == null) {
+            logger.warn("Null password for student: {}", rollNumber);
+            return false;
+        }
+
+        boolean matches = passwordEncoder.matches(rawPassword, storedHash);
+
+        if (matches) {
+            logger.info("Student authenticated successfully by roll number: {}", rollNumber);
+        } else {
+            logger.warn("Invalid password for student: {}", rollNumber);
+        }
+
+        return matches;
+    }
+
+    @Override
+    public StudentEntity getStudentByIdentifier(String identifier) {
+        logger.info("Getting student by identifier: {}", identifier);
+
+        // Try to find by studentId first
+        StudentEntity student = studentRepository.findByStudentId(identifier);
+
+        // If not found, try by roll number
+        if (student == null) {
+            student = studentRepository.findByStudentRollNumber(identifier);
+        }
+
+        return student;
+    }
 
     // ============= 📝 CREATE STUDENT =============
 
     @Override
     @Transactional
     public StudentResponseDto createStudent(StudentRequestDto requestDto) {
-        logger.info("Creating student with auto-generated roll number");
+        logger.info("=== START CREATING STUDENT ===");
+        logger.info("Request DTO: {}", requestDto);
 
         try {
             // 1. Validate classId (required)
             if (requestDto.getClassId() == null) {
+                logger.error("classId is null");
                 throw new IllegalArgumentException("classId is required to assign student to a class");
             }
+            logger.info("Class ID: {}", requestDto.getClassId());
 
             // 2. Fetch the class entity
+            logger.info("Fetching class with ID: {}", requestDto.getClassId());
             ClassEntity classEntity = classRepository.findById(requestDto.getClassId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Class not found with ID: " + requestDto.getClassId()));
+            logger.info("Class found: {} - {}", classEntity.getClassName(), classEntity.getSection());
 
             // 3. Auto-generate roll number using class + section
             String autoRollNumber = studentIdGenerator.generateUniqueRollNumber(
@@ -73,36 +175,52 @@ public class StudentServiceImpl implements StudentService {
                     classEntity.getSection()
             );
             requestDto.setStudentRollNumber(autoRollNumber);
+            logger.info("Generated roll number: {}", autoRollNumber);
 
             // 4. Convert DTO to Entity
+            logger.info("Converting DTO to Entity...");
             StudentEntity student = convertToEntity(requestDto);
+            logger.info("Entity created with studentId: {}", student.getStudentId());
 
             // 5. Create enrollment (link student ↔ class)
+            logger.info("Creating enrollment...");
             StudentClassEnrollment enrollment = new StudentClassEnrollment(student, classEntity);
             student.addEnrollment(enrollment);
+            logger.info("Enrollment created");
 
             // 6. Sync denormalized fields
             student.setCurrentClass(classEntity.getClassName());
             student.setSection(classEntity.getSection());
+            logger.info("Set class: {}, section: {}", student.getCurrentClass(), student.getSection());
 
             // 7. Process images
+            logger.info("Processing images...");
             processImages(student, requestDto);
+            logger.info("Images processed");
 
             // 8. Save student
+            logger.info("Saving student to database...");
             StudentEntity savedStudent = studentRepository.save(student);
             logger.info("Student saved with ID: {} and Roll Number: {}",
                     savedStudent.getStdId(), savedStudent.getStudentRollNumber());
 
             // 9. Create fees if provided
             if (hasFeesData(requestDto)) {
+                logger.info("Creating fees for student...");
                 createFeesForStudent(savedStudent.getStdId(), requestDto);
+                logger.info("Fees created");
             }
 
+            logger.info("=== STUDENT CREATED SUCCESSFULLY ===");
             return convertToDto(savedStudent);
 
+        } catch (IllegalArgumentException e) {
+            logger.error("Validation error: {}", e.getMessage(), e);
+            throw e;
         } catch (Exception e) {
             logger.error("Error creating student: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create student: " + e.getMessage());
+            e.printStackTrace(); // This will print full stack trace to console
+            throw new RuntimeException("Failed to create student: " + e.getMessage(), e);
         }
     }
 
@@ -438,7 +556,11 @@ public class StudentServiceImpl implements StudentService {
                             student.setLastName((String) value);
                             break;
                         case "studentPassword":
-                            student.setStudentPassword((String) value);
+                            String plainPassword = (String) value;
+                            if (plainPassword != null && !plainPassword.isEmpty()) {
+                                String encryptedPassword = passwordEncoder.encode(plainPassword);
+                                student.setStudentPassword(encryptedPassword);
+                            }
                             break;
                         case "gender":
                             student.setGender((String) value);
@@ -857,7 +979,24 @@ public class StudentServiceImpl implements StudentService {
         entity.setFirstName(dto.getFirstName());
         entity.setMiddleName(dto.getMiddleName());
         entity.setLastName(dto.getLastName());
-        entity.setStudentPassword(dto.getStudentPassword());
+        // ✅ CRITICAL: Encrypt and set password
+        if (dto.getStudentPassword() != null && !dto.getStudentPassword().isEmpty()) {
+            String encryptedPassword = passwordEncoder.encode(dto.getStudentPassword());
+            entity.setStudentPassword(encryptedPassword);
+            logger.info("Password encrypted for student: {}", studentId);
+            logger.debug("Original password: {}", dto.getStudentPassword());
+            logger.debug("Encrypted password: {}", encryptedPassword);
+        } else {
+            logger.error("Password is null or empty for student: {}", studentId);
+            throw new IllegalArgumentException("Student password is required");
+        }
+
+        // ✅ ADD THIS - SET ROLE
+        entity.setRole("STUDENT");
+
+        // ✅ ADD THIS - SET DEFAULT STATUS
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : "Active");
+
         entity.setDateOfBirth(dto.getDateOfBirth());
         entity.setGender(dto.getGender());
         entity.setBloodGroup(dto.getBloodGroup());
@@ -944,8 +1083,14 @@ public class StudentServiceImpl implements StudentService {
         if (dto.getFirstName() != null) entity.setFirstName(dto.getFirstName());
         if (dto.getMiddleName() != null) entity.setMiddleName(dto.getMiddleName());
         if (dto.getLastName() != null) entity.setLastName(dto.getLastName());
-        if (dto.getStudentPassword() != null) entity.setStudentPassword(dto.getStudentPassword());
+// ✅ Encrypt password if being updated
+        if (dto.getStudentPassword() != null && !dto.getStudentPassword().isEmpty()) {
+            String encryptedPassword = passwordEncoder.encode(dto.getStudentPassword());
+            entity.setStudentPassword(encryptedPassword);
+            logger.debug("Password updated for student: {}", entity.getStudentId());
+        }
         if (dto.getDateOfBirth() != null) entity.setDateOfBirth(dto.getDateOfBirth());
+
         if (dto.getGender() != null) entity.setGender(dto.getGender());
         if (dto.getBloodGroup() != null) entity.setBloodGroup(dto.getBloodGroup());
         if (dto.getAadharNumber() != null) entity.setAadharNumber(dto.getAadharNumber());
@@ -1092,7 +1237,6 @@ public class StudentServiceImpl implements StudentService {
         } catch (Exception e) {
             logger.debug("No fees found for student {}", entity.getStdId());
         }
-
         return dto;
     }
 }

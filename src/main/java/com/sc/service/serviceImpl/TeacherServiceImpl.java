@@ -8,6 +8,7 @@ import com.sc.service.TeacherService;
 import com.sc.util.TeacherIdGenerator;
 import com.sc.bcrypt.BcryptEncoderConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +27,8 @@ public class TeacherServiceImpl implements TeacherService {
 
     @Autowired
     private TeacherRepository teacherRepository;
+
+
 
     @Autowired
     private BcryptEncoderConfig passwordEncoder;

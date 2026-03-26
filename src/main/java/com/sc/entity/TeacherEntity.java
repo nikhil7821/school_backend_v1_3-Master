@@ -24,6 +24,18 @@ public class TeacherEntity {
         TeacherEntity.passwordEncoder = encoder;
     }
 
+
+    @Column(name = "role", nullable = false)
+    private String role = "TEACHER";  // Static default role
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "teacher_id")
